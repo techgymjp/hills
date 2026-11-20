@@ -14,7 +14,7 @@ window.Ads = (() => {
       // 本番の広告ユニット（AdMob の Android アプリ「六本木ヒルズを引っこ抜け」）。空の種類は本番ビルドで出さない
       production: {
         interstitial: 'ca-app-pub-6411535997477460/2022241563',
-        rewarded: '',
+        rewarded: 'ca-app-pub-6411535997477460/1326117893',
         banner: 'ca-app-pub-6411535997477460/6071625225',
       },
     },
