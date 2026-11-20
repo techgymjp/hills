@@ -1393,6 +1393,28 @@ function endGame(reason) {
   document.getElementById('result-reason').textContent = reason;
   document.getElementById('result-score').textContent = `${game.score.toLocaleString()} 点`;
   document.getElementById('result-rank').textContent = rankOf(game.score) + (isBest ? '　★自己ベスト' : '');
+  // シェア用の画像：結果が出た瞬間のゲーム画面に点数を書き込む
+  shareData = { score: game.score, rank: rankOf(game.score), pulled: game.pulled, reason };
+  shareImage = null;
+  try {
+    renderer.render(scene, camera);
+    const src = renderer.domElement;
+    const w = 1080, h = Math.round(1080 * src.height / src.width);
+    const c = document.createElement('canvas');
+    c.width = w; c.height = Math.min(h, 1920);
+    const g = c.getContext('2d');
+    g.drawImage(src, 0, 0, src.width, src.height * c.height / h, 0, 0, w, c.height);
+    g.fillStyle = 'rgba(20,22,31,.78)';
+    g.fillRect(0, c.height - 330, w, 330);
+    g.textAlign = 'center';
+    g.fillStyle = '#ffcf33'; g.font = '900 54px sans-serif';
+    g.fillText('六本木ヒルズを引っこ抜け', w / 2, c.height - 250);
+    g.fillStyle = '#fff'; g.font = '900 96px sans-serif';
+    g.fillText(`${game.score.toLocaleString()} 点`, w / 2, c.height - 140);
+    g.font = '700 40px sans-serif';
+    g.fillText(`${rankOf(game.score)}　${game.pulled}本引っこ抜いた`, w / 2, c.height - 60);
+    c.toBlob(b => { if (b) shareImage = new File([b], 'hills-result.png', { type: 'image/png' }); }, 'image/png');
+  } catch (_) { /* 画像が作れなくても文字だけでシェアする */ }
   const c = game.counts;
   document.getElementById('result-stats').innerHTML = `
     <dt>引っこ抜いたヒルズ</dt><dd>${game.pulled} 本</dd>
@@ -1438,6 +1460,25 @@ startBtn.addEventListener('click', () => {
   sfx('sprout'); startBgm(); newGame();
 });
 document.getElementById('retry').addEventListener('click', () => { sfx('sprout'); startBgm(); newGame(); });
+
+// 結果のシェア：使える端末では OS の共有メニュー（画像付き）、ほかは X の投稿画面
+let shareData = null, shareImage = null;
+document.getElementById('share').addEventListener('click', async () => {
+  if (!shareData) return;
+  const url = location.origin + location.pathname;
+  const text = `六本木ヒルズを引っこ抜けで ${shareData.score.toLocaleString()}点！ ${shareData.rank}　${shareData.pulled}本引っこ抜いた #ヒルズ引っこ抜け`;
+  if (navigator.share) {
+    const data = { title: '六本木ヒルズを引っこ抜け', text, url };
+    try {
+      if (shareImage && navigator.canShare && navigator.canShare({ files: [shareImage] })) await navigator.share({ ...data, files: [shareImage] });
+      else await navigator.share(data);
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // ユーザーが閉じただけ
+    }
+  }
+  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank', 'noopener');
+});
 
 // ---------------------------------------------------------------------
 // 入力：ヒルズ上を上スワイプ＝引っこ抜く／それ以外のドラッグ＝移動
