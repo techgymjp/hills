@@ -620,18 +620,23 @@ const PALETTES = [
 async function loadPlateau(onProgress) {
   const res = await fetch('data/buildings.bin');
   if (!res.ok) throw new Error('建物データを読み込めませんでした');
-  const total = +res.headers.get('content-length') || 0;
+  // サーバーが gzip 圧縮して送ると content-length は圧縮後のサイズになるので、
+  // 受け取った断片をためてから最後につなげる（content-length は進捗の目安にだけ使う）
+  const DATA_BYTES = 6176888;
   let buf;
-  if (res.body && total) {
+  if (res.body && res.body.getReader) {
     const reader = res.body.getReader();
-    const bytes = new Uint8Array(total);
+    const parts = [];
     let got = 0;
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      bytes.set(value, got); got += value.length;
-      onProgress(got / total * 0.6);
+      parts.push(value); got += value.length;
+      onProgress(Math.min(1, got / DATA_BYTES) * 0.6);
     }
+    const bytes = new Uint8Array(got);
+    let o = 0;
+    for (const part of parts) { bytes.set(part, o); o += part.length; }
     buf = bytes.buffer;
   } else {
     buf = await res.arrayBuffer();
@@ -1384,9 +1389,13 @@ Promise.all([loadPlateau(k => { startBtn.textContent = `街を読み込み中…
   .catch(err => {
     console.error(err);
     startBtn.disabled = false;
-    startBtn.textContent = 'はじめる（建物なし）';
+    startBtn.textContent = '読み込みに失敗。タップで再読み込み';
+    startBtn.dataset.failed = '1';
   });
-startBtn.addEventListener('click', () => { sfx('sprout'); startBgm(); newGame(); });
+startBtn.addEventListener('click', () => {
+  if (startBtn.dataset.failed) { location.reload(); return; }
+  sfx('sprout'); startBgm(); newGame();
+});
 document.getElementById('retry').addEventListener('click', () => { sfx('sprout'); startBgm(); newGame(); });
 
 // ---------------------------------------------------------------------
