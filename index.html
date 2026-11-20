@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#9fc6e8">
+<title>六本木ヒルズを引っこ抜け</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <div id="hud" hidden>
+    <div class="pill"><span class="label">スコア</span><span id="score">0</span></div>
+    <div class="pill"><span class="label">のこり</span><span id="time">60</span></div>
+    <div class="pill"><span class="label">定着</span><span id="rooted">0/5</span></div>
+  </div>
+  <div id="combo" hidden></div>
+  <div id="labels"></div>
+  <div id="arrows"></div>
+  <canvas id="radar" width="140" height="140" hidden></canvas>
+  <div id="cam-buttons">
+    <button id="rot-l" aria-label="左に回転">⟲</button>
+    <button id="zoom-in" aria-label="ズームイン">＋</button>
+    <button id="zoom-out" aria-label="ズームアウト">－</button>
+    <button id="rot-r" aria-label="右に回転">⟳</button>
+  </div>
+  <div id="popups"></div>
+  <div id="overlay">
+    <div class="panel" id="title-panel">
+      <p class="kicker">港区 筍狩り</p>
+      <h1>六本木ヒルズを<br><span>引っこ抜け</span></h1>
+      <ul>
+        <li>港区のあちこちから六本木ヒルズが生えてくる</li>
+        <li>ヒルズを<b>上にスワイプ</b>して引っこ抜け</li>
+        <li><b>顔を出したばかり</b>のヒルズほど高得点</li>
+        <li>育ちきると根付いてしまう。<b>5本定着</b>で港区陥落</li>
+        <li>ドラッグで移動、ピンチでズーム・回転。画面端の矢印やレーダーをタップするとそこへ飛べる</li>
+      </ul>
+      <p class="note">舞台：六本木ヒルズから半径5km（ランドマークは実際の位置。一般の建物は手続き生成）</p>
+      <p class="best" id="best"></p>
+      <button id="start">はじめる</button>
+    </div>
+    <div class="panel" id="result-panel" hidden>
+      <p class="kicker" id="result-reason"></p>
+      <h1 id="result-score"></h1>
+      <p class="rank" id="result-rank"></p>
+      <dl id="result-stats"></dl>
+      <button id="retry">もう一回</button>
+    </div>
+  </div>
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>
