@@ -2,6 +2,11 @@
 import * as THREE from './lib/three.module.min.js';
 import { t, lang, setLang, applyI18n, onLangChange, landmarkName } from './i18n.js';
 
+// Android / iOS アプリ（Capacitor）で動いているか。Web 版では Capacitor がないので何もしない
+const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const plugin = name => (NATIVE && window.Capacitor.Plugins ? window.Capacitor.Plugins[name] : null);
+const Ads = window.Ads || { available: false, canReward: false, showing: false, privacyOptionsRequired: false, initDone: Promise.resolve(), showInterstitial: async () => {}, showRewarded: async () => 'unavailable', setBanner() {}, showPrivacyOptions: async () => {} };
+
 // =====================================================================
 // 座標系：六本木ヒルズ森タワーを原点、1単位 = 1m
 //   x = 東, z = 南（北は -z）, y = 上
@@ -1229,13 +1234,16 @@ function newGame() {
   holes.forEach(h => scene.remove(h.mesh));
   holes.length = 0;
   game = {
-    time: 0, score: 0, rooted: 0, pulled: 0, trains: 0, combo: 0, comboT: 0, nextSpawn: 0.5,
+    time: 0, score: 0, rooted: 0, pulled: 0, trains: 0, continues: 0, combo: 0, comboT: 0, nextSpawn: 0.5,
     best: { name: '', pts: 0 }, counts: { gold: 0, good: 0, ok: 0, old: 0 },
   };
   state = 'play';
+  paused = false;
+  closeOffer();
   cam.target.set(0, 0, 0);
   flyTo(0, 0, 1500);
   ui.overlay.hidden = true;
+  showPanel(null);
   ui.hud.hidden = false;
   ui.radar.hidden = false;
   spawn(true); spawn(true);
@@ -1290,7 +1298,9 @@ function grade(s) {
   return { pts: 40, name: t('gOld'), key: 'old', color: '#c9c9c9' };
 }
 
-function yank(s) {
+function yank(s, free = false) {
+  // free: リワード広告のコンティニューで根付いたヒルズを抜くとき（点数は入らない）
+  if (free) { launch(s); return; }
   const g = grade(s);
   game.combo = game.comboT > 0 ? game.combo + 1 : 1;
   game.comboT = 3;
@@ -1304,6 +1314,14 @@ function yank(s) {
   if (pts > game.best.pts) game.best = { name: g.name, pts };
 
   if (s.state === 'rooted') game.rooted = Math.max(0, game.rooted - 1);
+  launch(s);
+  const sp = project(s.spot.x, s.group.position.y + HILLS_H, s.spot.z);
+  popup(`${g.name}<small>+${pts}${game.combo > 1 ? t('comboSuffix', { n: game.combo }) : ''}</small>`, sp.x, sp.y, g.color, g.key === 'gold' ? 34 : 28);
+  if (s.line) setTimeout(() => popup(`${t(s.line === 'oedo' ? 'trainOedo' : 'trainHibiya')}<small>+${TRAIN_BONUS}</small>`, sp.x, sp.y + 70, s.line === 'oedo' ? '#ff5aa0' : '#e6e6e0', 24), 350);
+}
+
+// 引っこ抜いたヒルズを飛ばす（放物線で飛んで、横倒しで着地する）
+function launch(s) {
   if (!everPulled) { everPulled = true; try { localStorage.setItem('hills_pulled', '1'); } catch (_) { /* ignore */ } }
   s.state = 'fly';
   s.t = 0;
@@ -1337,9 +1355,6 @@ function yank(s) {
   sfx('pop');
   if (navigator.vibrate) navigator.vibrate(40);
 
-  const sp = project(s.spot.x, s.group.position.y + HILLS_H, s.spot.z);
-  popup(`${g.name}<small>+${pts}${game.combo > 1 ? t('comboSuffix', { n: game.combo }) : ''}</small>`, sp.x, sp.y, g.color, g.key === 'gold' ? 34 : 28);
-  if (s.line) setTimeout(() => popup(`${t(s.line === 'oedo' ? 'trainOedo' : 'trainHibiya')}<small>+${TRAIN_BONUS}</small>`, sp.x, sp.y + 70, s.line === 'oedo' ? '#ff5aa0' : '#e6e6e0', 24), 350);
 }
 
 function popup(html, x, y, color = '#fff', size = 28) {
@@ -1381,7 +1396,7 @@ function updateSprouts(dt) {
           cam.shake = 6;
           const sp = project(s.spot.x, HILLS_H, s.spot.z);
           if (sp.front) popup(t('tookRoot'), sp.x, sp.y, '#ff6b6b', 24);
-          if (game.rooted >= ROOT_LIMIT) endGame(t('reasonLost'));
+          if (game.rooted >= ROOT_LIMIT) endGame(t('reasonLost'), true);
         }
       }
       // スワイプの合間（1.5秒以内）は上がった分を保つ
@@ -1465,11 +1480,23 @@ function rankOf(score) {
   return t('rankD');
 }
 
-function endGame(reason) {
+function endGame(reason, occupied = false) {
   if (state !== 'play') return;
-  state = 'over';
-  stopBgm();
   if (pull.sprout) { pull.sprout.grabbed = false; pull.sprout = null; }
+  // 港区陥落（一番悔しい失敗）のときは、広告を見て続けられるか聞く（アプリのみ・1 ゲーム 1 回）
+  if (occupied && Ads.canReward && game.continues < CONTINUE_MAX) {
+    state = 'offer';
+    offer.pending = OFFER_DELAY;
+    offer.reason = reason;
+    return;
+  }
+  finishGame(reason);
+}
+
+function finishGame(reason) {
+  state = 'over';
+  closeOffer();
+  stopBgm();
   const isBest = game.score > best;
   if (isBest) { best = game.score; try { localStorage.setItem('hills_best3d', String(best)); } catch (_) { /* ignore */ } }
   showBest();
@@ -1480,7 +1507,7 @@ function endGame(reason) {
   bestEl.hidden = !isBest;
   bestEl.textContent = t('newBest');
   // シェア用の画像：結果が出た瞬間のゲーム画面に点数を書き込む
-  shareData = { score: game.score, rank: rankOf(game.score), pulled: game.pulled, reason };
+  shareData = { score: game.score, rank: rankOf(game.score), pulled: game.pulled, continues: game.continues, reason };
   shareImage = null;
   try {
     renderer.render(scene, camera);
@@ -1508,16 +1535,126 @@ function endGame(reason) {
     <dt>${t('stGood')}</dt><dd>${t('count', { n: c.good })}</dd>
     <dt>${t('stOkOld')}</dt><dd>${t('count', { n: c.ok + c.old })}</dd>
     <dt>${t('stTrains')}</dt><dd>${t('count', { n: game.trains })}</dd>
-    <dt>${t('stRooted')}</dt><dd>${t('count', { n: game.rooted })}</dd>`;
+    <dt>${t('stRooted')}</dt><dd>${t('count', { n: game.rooted })}</dd>${game.continues ? `
+    <dt>${t('stContinues')}</dt><dd>${t('times', { n: game.continues })}</dd>` : ''}`;
   setTimeout(() => {
+    if (state !== 'over') return;
     ui.overlay.hidden = false;
-    ui.titlePanel.hidden = true;
-    ui.resultPanel.hidden = false;
+    showPanel(ui.resultPanel);
     ui.hud.hidden = true;
     ui.combo.hidden = true;
   }, 900);
 }
 
+// ---------------------------------------------------------------------
+// 画面の切り替え・ポーズ・全画面広告・戻るボタン（アプリ用の処理。Web 版でも同じ画面で動く）
+// ---------------------------------------------------------------------
+const panels = ['title-panel', 'howto-panel', 'result-panel', 'pause-panel'].map(id => document.getElementById(id));
+function showPanel(el) { panels.forEach(p => { p.hidden = p !== el; }); }
+let paused = false;
+
+function pauseGame() {
+  if (state !== 'play' || paused) return;
+  paused = true;
+  if (pull.sprout) { pull.sprout.grabbed = false; pull.sprout = null; }
+  pointers.clear(); multi = null;
+  ui.overlay.hidden = false;
+  showPanel(document.getElementById('pause-panel'));
+}
+function resumeGame() {
+  paused = false;
+  ui.overlay.hidden = true;
+  showPanel(null);
+  last = performance.now();
+}
+
+// 全画面広告を出してから次へ進む（アプリのみ。Web 版ではそのまま進む）
+let adBusy = false;
+async function withInterstitial(next, intoPlay = false) {
+  if (adBusy) return;
+  if (Ads.available) {
+    adBusy = true;
+    // プレイに入るときは先にパネルを閉じて、広告のあとにバナーが一瞬出ないようにする
+    if (intoPlay) { ui.overlay.hidden = true; Ads.setBanner(false); }
+    await Ads.showInterstitial(3000);
+    adBusy = false;
+  }
+  next();
+}
+
+function goTitle() {
+  stopBgm();
+  closeOffer();
+  sprouts.forEach(sp => { scene.remove(sp.group, sp.mound, sp.ring); sp.spot.used = false; });
+  sprouts.length = 0;
+  state = 'title';
+  paused = false;
+  ui.overlay.hidden = false;
+  ui.hud.hidden = true;
+  ui.combo.hidden = true;
+  ui.radar.hidden = true;
+  showPanel(ui.titlePanel);
+  cam.fly = null; cam.target.set(0, 0, 0); cam.dist = 1500;
+}
+
+// ---------------------------------------------------------------------
+// リワード広告のチート：港区陥落のとき、広告を見ると根付いたヒルズを全部引っこ抜いて続けられる
+//   陥落の様子を見届けられるよう少し待ってから案内を出し、数秒で自動的に結果画面へ進む
+// ---------------------------------------------------------------------
+const CONTINUE_MAX = 1;
+const OFFER_DELAY = 2.5;
+const OFFER_WAIT = 6;
+const offer = { pending: 0, active: false, busy: false, t: 0, reason: '' };
+const offerEl = document.getElementById('offer');
+function showOffer() {
+  Object.assign(offer, { active: true, busy: false, t: OFFER_WAIT, pending: 0 });
+  document.getElementById('offer-watch').disabled = false;
+  document.getElementById('offer-watch').innerHTML = t('offerWatch');
+  document.getElementById('offer-note').innerHTML = t('offerNote');
+  offerEl.hidden = false;
+}
+function closeOffer() {
+  offer.active = false;
+  offer.pending = 0;
+  offerEl.hidden = true;
+}
+function updateOffer(dt) {
+  if (state !== 'offer' || paused) return;
+  if (offer.pending > 0) {
+    offer.pending -= dt;
+    if (offer.pending <= 0) showOffer();
+    return;
+  }
+  if (!offer.active || offer.busy) return;
+  offer.t -= dt;
+  document.getElementById('offer-skip').innerHTML = t('offerSkip', { s: Math.max(0, Math.ceil(offer.t)) });
+  if (offer.t <= 0) finishGame(offer.reason);
+}
+document.getElementById('offer-skip').addEventListener('click', () => { if (state === 'offer') finishGame(offer.reason); });
+document.getElementById('offer-watch').addEventListener('click', async () => {
+  if (!offer.active || offer.busy) return;
+  offer.busy = true;
+  document.getElementById('offer-watch').disabled = true;
+  document.getElementById('offer-watch').innerHTML = t('offerLoading');
+  const result = await Ads.showRewarded();
+  if (state !== 'offer') return;
+  if (result === 'unavailable') {
+    document.getElementById('offer-note').innerHTML = t('offerFail');
+    setTimeout(() => { if (state === 'offer') finishGame(offer.reason); }, 2000);
+    return;
+  }
+  if (result !== 'rewarded') { finishGame(offer.reason); return; }
+  // 根付いたヒルズを全部引っこ抜いて、ゲームを続ける
+  closeOffer();
+  game.continues++;
+  sprouts.filter(sp => sp.state === 'rooted').forEach(sp => yank(sp, true));
+  game.rooted = 0;
+  state = 'play';
+  last = performance.now();
+  popup(t('continued'), window.innerWidth / 2, window.innerHeight * 0.4, '#7dff9a', 30);
+});
+
+let plateauInfo = null;
 const startBtn = document.getElementById('start');
 startBtn.disabled = true;
 const loadProg = { city: 0, sound: 0 };
@@ -1537,7 +1674,7 @@ Promise.all([
     startBtn.disabled = false;
     loaded = true;
     showStart();
-    window.__hills.plateau = info;
+    plateauInfo = info;
   })
   .catch(err => {
     console.error(err);
@@ -1547,13 +1684,50 @@ Promise.all([
     startBtn.dataset.failed = '1';
   });
 const howtoPanel = document.getElementById('howto-panel');
-document.getElementById('howto-open').addEventListener('click', () => { ui.titlePanel.hidden = true; howtoPanel.hidden = false; howtoPanel.scrollTop = 0; });
-document.getElementById('howto-close').addEventListener('click', () => { howtoPanel.hidden = true; ui.titlePanel.hidden = false; });
+document.getElementById('howto-open').addEventListener('click', () => { showPanel(howtoPanel); howtoPanel.scrollTop = 0; });
+// 遊び方 → トップ（全画面広告のあと）
+document.getElementById('howto-close').addEventListener('click', () => withInterstitial(() => showPanel(ui.titlePanel)));
+// プレイを始める・もう一回（全画面広告のあと）
+const play = () => { ensureAudio(); withInterstitial(() => { sfx('sprout'); startBgm(); newGame(); }, true); };
 startBtn.addEventListener('click', () => {
   if (startBtn.dataset.failed) { location.reload(); return; }
-  sfx('sprout'); startBgm(); newGame();
+  play();
 });
-document.getElementById('retry').addEventListener('click', () => { sfx('sprout'); startBgm(); newGame(); });
+document.getElementById('retry').addEventListener('click', play);
+document.getElementById('to-title').addEventListener('click', () => withInterstitial(goTitle));
+document.getElementById('pause').addEventListener('click', pauseGame);
+document.getElementById('pause-resume').addEventListener('click', () => withInterstitial(resumeGame, true));
+document.getElementById('pause-title').addEventListener('click', () => withInterstitial(goTitle));
+
+// Android の戻るボタン：プレイ中はポーズ（ポーズ中なら再開）、遊び方ならトップへ、トップ・結果画面ではアプリを閉じる
+if (plugin('App')) {
+  plugin('App').addListener('backButton', () => {
+    if (adBusy) return;
+    if (state === 'play' && paused) withInterstitial(resumeGame, true);
+    else if (state === 'play') pauseGame();
+    else if (!howtoPanel.hidden) withInterstitial(() => showPanel(ui.titlePanel));
+    else if (state === 'title' || state === 'over') plugin('App').exitApp();
+  });
+}
+
+// 裏に回ったら一時停止して音を止める（広告の表示中は広告側が音を止めている）
+window.Sound = {
+  suspend() { if (audio && audio.state === 'running') audio.suspend(); },
+  resume() { if (audio && audio.state === 'suspended') audio.resume(); },
+};
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    pauseGame();
+    window.Sound.suspend();
+  } else if (!Ads.showing) {
+    window.Sound.resume();
+  }
+});
+
+// タイトル画面の下に、バージョン（アプリ版）・プライバシーポリシー・広告の設定（EU など）を出す
+if (window.APP_VERSION && window.APP_VERSION !== 'dev') document.getElementById('build-info').textContent = window.APP_VERSION;
+Ads.initDone.then(() => { if (Ads.privacyOptionsRequired) document.getElementById('ad-privacy').hidden = false; });
+document.getElementById('ad-privacy-link').addEventListener('click', e => { e.preventDefault(); Ads.showPrivacyOptions(); });
 
 // 結果のシェア：使える端末では OS の共有メニュー（画像付き）、ほかは X の投稿画面
 const SHARE_URL = 'https://techgym.jp/column/claude-code-game-hills/';
@@ -1561,7 +1735,14 @@ let shareData = null, shareImage = null;
 document.getElementById('share').addEventListener('click', async () => {
   if (!shareData) return;
   const url = SHARE_URL;
-  const text = t('shareText', { score: shareData.score.toLocaleString(), rank: shareData.rank, n: shareData.pulled });
+  const text = t('shareText', { score: shareData.score.toLocaleString(), rank: shareData.rank, n: shareData.pulled })
+    + (shareData.continues ? t('shareContinues', { n: shareData.continues }) : '');
+  // アプリでは Android の共有メニューを出す
+  const nativeShare = plugin('Share');
+  if (nativeShare) {
+    try { await nativeShare.share({ title: t('pageTitle'), text, url, dialogTitle: t('share') }); } catch (_) { /* キャンセル */ }
+    return;
+  }
   if (navigator.share) {
     const data = { title: t('pageTitle'), text, url };
     try {
@@ -1813,7 +1994,7 @@ function updateArrows() {
   // レーダー（左下）と音のボタン（右下）の上には置かない
   const GAP = 58;
   const rr = ui.radar.getBoundingClientRect();
-  const mr = document.getElementById('mute').getBoundingClientRect();
+  const mr = document.getElementById('corner').getBoundingClientRect();
   const maxY = p => (p.x < rr.right + 30 ? rr.top - 34 : p.x > mr.left - 30 ? mr.top - 34 : H - 34);
   const fit = p => { p.x = clamp(p.x, 34, W - 34); p.y = clamp(p.y, 90, maxY(p)); };
   placed.forEach(fit);
@@ -1918,12 +2099,17 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (state === 'title') { cam.heading += dt * 0.06; }
-  if (state === 'play') updateGame(dt);
-  updateSprouts(dt);
-  updateParticles(dt);
-  updateSmokes(dt);
+  if (!paused) {
+    if (state === 'play') updateGame(dt);
+    updateOffer(dt);
+    updateSprouts(dt);
+    updateParticles(dt);
+    updateSmokes(dt);
+  }
+  // バナー広告：タイトル・遊び方・ポーズ・結果の画面だけ（プレイ中は出さない）
+  Ads.setBanner(!ui.overlay.hidden);
   updateSmallChunks();
-  updateKeys(dt);
+  if (!paused) updateKeys(dt);
   updateCamera(dt);
   renderer.render(scene, camera);
   updateArrows();
@@ -1934,8 +2120,10 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
-// デバッグ・テスト用
-window.__hills = { spotStats: () => ({ spots: SPOTS.length, near: SPOTS.filter(sp => subwayAt(sp)).length }), camera, renderer, scene, get state() { return state; }, get game() { return game; }, sprouts, cam, newGame, yank, project, flyTo };
+// web-only:start
+// 撮影・テスト用（アプリ用のビルドでは取り除く）
+window.__hills = { get plateau() { return plateauInfo; }, spotStats: () => ({ spots: SPOTS.length, near: SPOTS.filter(sp => subwayAt(sp)).length }), camera, renderer, scene, get state() { return state; }, get game() { return game; }, sprouts, cam, newGame, yank, project, flyTo };
+// web-only:end
 
 // 言語の切り替え（タイトル画面のボタン）
 document.getElementById('lang').addEventListener('click', () => setLang(lang === 'ja' ? 'en' : 'ja'));

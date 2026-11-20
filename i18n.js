@@ -55,6 +55,15 @@ const DICT = {
     rankC: 'ランクC　見習い筍掘り', rankD: 'ランクD　ヒルズに好かれた人',
     shareText: '六本木ヒルズを引っこ抜けで {score}点！ {rank}　{n}本引っこ抜いた #ヒルズ引っこ抜け',
     shareImgSub: '{rank}　{n}本引っこ抜いた',
+    shareContinues: '（コンティニュー{n}回）',
+    pauseLabel: 'ポーズ', pausedKicker: 'ポーズ中', resume: '再開', toTitle: 'トップへ',
+    offerTitle: '港区陥落…',
+    offerNote: '広告を見ると、根付いたヒルズを全部引っこ抜いて続けられる（1ゲーム1回）',
+    offerWatch: '▶ 広告を見て続ける', offerLoading: '広告を読み込み中…', offerFail: '広告を読み込めませんでした',
+    offerSkip: '結果を見る（{s}）',
+    continued: '根付いたヒルズを全部引っこ抜いた！',
+    stContinues: 'コンティニュー', times: '{n} 回',
+    privacy: 'プライバシーポリシー', privacyUrl: 'https://techgym.jp/privacy-policy/', adSettings: '広告の設定',
   },
   en: {
     pageTitle: 'Pull Out Roppongi Hills',
@@ -109,6 +118,15 @@ const DICT = {
     rankC: 'Rank C  Apprentice Digger', rankD: 'Rank D  Beloved by the Hills',
     shareText: 'I scored {score} in Pull Out Roppongi Hills! {rank} — pulled out {n} Hills #ヒルズ引っこ抜け',
     shareImgSub: '{rank}  {n} Hills pulled out',
+    shareContinues: ' (continued {n}×)',
+    pauseLabel: 'Pause', pausedKicker: 'PAUSED', resume: 'Resume', toTitle: 'Back to top',
+    offerTitle: 'Minato City has fallen…',
+    offerNote: 'Watch an ad to pull out every rooted Hills and keep playing (once per game)',
+    offerWatch: '▶ Watch an ad to continue', offerLoading: 'Loading the ad…', offerFail: 'The ad could not be loaded',
+    offerSkip: 'See results ({s})',
+    continued: 'Pulled out every rooted Hills!',
+    stContinues: 'Continues', times: '{n}',
+    privacy: 'Privacy policy', privacyUrl: 'https://techgym.jp/privacy-policy-en/', adSettings: 'Ad settings',
   },
 };
 
@@ -147,6 +165,7 @@ export function applyI18n() {
   document.title = t('pageTitle');
   document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
+  document.querySelectorAll('[data-i18n-href]').forEach(el => { el.setAttribute('href', t(el.dataset.i18nHref)); });
   listeners.forEach(fn => fn(lang));
 }
 

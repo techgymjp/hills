@@ -67,3 +67,35 @@ python3 -m http.server 8000
 ## GitHub Pages
 リポジトリの Settings → Pages → Build and deployment で
 「Deploy from a branch」→ ブランチ `main` / フォルダ `/ (root)` を選択して保存してください。
+
+## Android アプリ
+
+Capacitor でゲームのファイルをアプリに同梱しています（オフラインで遊べます）。パッケージ名は `jp.techgym.hills`。
+
+- 動作確認用 APK（デバッグ署名・テスト広告）：https://github.com/techgymjp/hills/releases/tag/android-latest
+  （APK 直接：https://github.com/techgymjp/hills/releases/latest/download/hills.apk）
+- 既定ブランチ（main）に push するたびに GitHub Actions（`.github/workflows/android.yml`）がビルドして、上の Release の APK を差し替えます
+- GitHub Secrets（`ANDROID_KEYSTORE_BASE64` など 4 つ）を登録すると、Google Play 用の署名付き AAB（本番広告）も Actions の Artifact に作ります
+
+| 広告 | 出す場面 |
+| --- | --- |
+| バナー | タイトル・遊び方・ポーズ・結果の画面だけ（画面の下中央） |
+| 全画面広告 | プレイ開始、トップに戻る（遊び方・ポーズ・結果から）、ポーズからの再開、結果からもう一回 のたび |
+| リワード | 港区陥落（根付いたヒルズが 5 本）のとき「広告を見て続ける」。根付いたヒルズを全部引っこ抜いて続けられる（1 ゲーム 1 回。結果画面とシェア文に「コンティニュー N 回」） |
+
+AdMob のアプリ ID は `android/app/src/main/res/values/strings.xml` の `admob_app_id`、広告ユニット ID は `ads.js` の `UNITS.android.production` に入れます。
+本番の ID が届くまでは、アプリ ID は Google 公式のテスト用、本番の広告ユニットは空（本番ビルドでは広告を出さない）にしています。
+
+```bash
+npm ci
+npm run android:sync   # www/ を作って Android プロジェクトにコピー（テスト広告）
+npm run android:open   # Android Studio で開く
+```
+
+アイコンと起動画面は `assets/` の元画像から `npx @capacitor/assets generate --android` で生成しています。
+
+## ライセンス
+
+ソースコード・画像・音声・文章の著作権はテックジム株式会社に帰属します（All rights reserved）。許可なく複製・改変・再配布すること、Web サイトやアプリとして公開・販売すること、名前・アイコン・画像を使うことを禁止します。テックジムの受講生が学習目的で複製・改変することは許可します（アプリストアでの公開・広告の掲載・販売などの商用利用は禁止、著作権表示は残す）。詳しくは `LICENSE` を見てください。
+
+同梱している three.js（MIT License）と、PLATEAU の 3D 都市モデルから作ったデータ（`data/`）は、それぞれのライセンスに従います。

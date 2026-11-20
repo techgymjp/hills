@@ -1,0 +1,8 @@
+{
+  "appId": "jp.techgym.hills",
+  "appName": "ヒルズ引っこ抜け",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#14161f"
+  }
+}

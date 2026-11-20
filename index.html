@@ -18,7 +18,16 @@
   <div id="labels"></div>
   <div id="arrows"></div>
   <canvas id="radar" width="400" height="400" hidden></canvas>
-  <button id="mute" data-i18n-aria="muteLabel" aria-label="音のオン・オフ">🔊</button>
+  <div id="corner">
+    <button id="pause" data-i18n-aria="pauseLabel" aria-label="ポーズ"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="3.6" height="12" rx="1" fill="#fff"/><rect x="9.4" y="2" width="3.6" height="12" rx="1" fill="#fff"/></svg></button>
+    <button id="mute" data-i18n-aria="muteLabel" aria-label="音のオン・オフ">🔊</button>
+  </div>
+  <div id="offer" hidden>
+    <p class="offer-title" data-i18n="offerTitle">港区陥落…</p>
+    <p class="offer-note" id="offer-note"></p>
+    <button id="offer-watch"></button>
+    <button id="offer-skip" class="sub"></button>
+  </div>
   <div id="popups"></div>
   <div id="pull-gauge" hidden><i></i></div>
   <div id="pull-hint" hidden data-i18n="pullHint"><b>↑</b>上にスワイプ</div>
@@ -32,6 +41,16 @@
       <button id="start">はじめる</button>
       <button id="howto-open" class="sub" data-i18n="howtoOpen">遊び方</button>
       <button id="lang" class="lang" data-i18n="langButton">English</button>
+      <p class="legal">
+        <span id="build-info"></span>
+        <a href="https://techgym.jp/privacy-policy/" data-i18n-href="privacyUrl" data-i18n="privacy" target="_blank" rel="noopener">プライバシーポリシー</a>
+        <span id="ad-privacy" hidden>｜<a href="#" id="ad-privacy-link" data-i18n="adSettings">広告の設定</a></span>
+      </p>
+    </div>
+    <div class="panel" id="pause-panel" hidden>
+      <p class="kicker" data-i18n="pausedKicker">ポーズ</p>
+      <button id="pause-resume" data-i18n="resume">再開</button>
+      <button id="pause-title" class="sub" data-i18n="toTitle">トップへ</button>
     </div>
     <div class="panel howto" id="howto-panel" hidden>
       <p class="kicker" data-i18n="howtoKicker">遊び方</p>
@@ -81,9 +100,13 @@
       <dl id="result-stats"></dl>
       <button id="share" class="share" data-i18n="share">結果をシェア</button>
       <button id="retry" data-i18n="retry">もう一回</button>
+      <button id="to-title" class="sub" data-i18n="toTitle">トップへ</button>
     </div>
   </div>
 </div>
+<script src="build-info.js"></script>
+<script src="ads-config.js"></script>
+<script src="ads.js"></script>
 <script type="module" src="main.js"></script>
 </body>
 </html>

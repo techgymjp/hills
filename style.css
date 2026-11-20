@@ -40,7 +40,8 @@ button:active{transform:translateY(3px);box-shadow:0 1px 0 #b88a00}
 #radar{position:absolute;left:10px;bottom:calc(10px + env(safe-area-inset-bottom));width:min(46vw,46vh,240px);height:min(46vw,46vh,240px);cursor:pointer}
 #radar[hidden]{display:none}
 #hud[hidden],#combo[hidden]{display:none}
-#mute{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom));right:14px;width:44px;height:44px;padding:0;font-size:18px;border-radius:50%;background:rgba(20,22,31,.72);box-shadow:none}
+#corner{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom));right:14px;display:flex;gap:8px}
+#mute,#pause{position:static;width:44px;height:44px;padding:0;font-size:18px;border-radius:50%;background:rgba(20,22,31,.72);box-shadow:none}
 #mute:active{transform:scale(.92)}
 button:disabled{opacity:.7;cursor:wait}
 #pull-gauge{position:absolute;width:110px;height:14px;transform:translate(-50%,-50%);background:rgba(20,22,31,.8);border:2px solid #fff;border-radius:999px;overflow:hidden;pointer-events:none}
@@ -74,3 +75,16 @@ html[lang="en"] h1 span{font-size:36px}
 html[lang="en"] .pill .label{font-size:9px;letter-spacing:.05em}
 .nw{white-space:nowrap;display:inline-block}
 .tip{font-size:13px;line-height:1.6;margin:10px 0 0;opacity:.9}
+#pause{padding:0;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(20,22,31,.72);box-shadow:none}
+#pause:active{transform:scale(.92)}
+#offer{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(340px,calc(100vw - 32px));background:rgba(20,22,31,.92);border-radius:18px;padding:20px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+#offer[hidden]{display:none}
+.offer-title{margin:0 0 8px;font-size:22px;font-weight:900;color:var(--danger)}
+.offer-note{margin:0 0 16px;font-size:14px;line-height:1.6}
+#offer-watch{display:block;margin:0 auto;font-size:17px;padding:12px 22px}
+.legal{margin:14px 0 0;font-size:11px;opacity:.7;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.legal a{color:#cfd6e4}
+#pause-panel button{display:block;margin:12px auto 0}
+/* アプリでバナー広告が出ているときは、パネルのボタンが隠れないよう下に余白を取る */
+body.has-banner #overlay{padding-bottom:66px}
+body.has-banner .howto{max-height:calc(100vh - 98px)}
