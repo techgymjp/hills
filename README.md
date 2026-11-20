@@ -74,6 +74,11 @@ Capacitor でゲームのファイルをアプリに同梱しています（オ�
 
 - 動作確認用 APK（デバッグ署名・テスト広告）：https://github.com/techgymjp/hills/releases/tag/android-latest
   （APK 直接：https://github.com/techgymjp/hills/releases/latest/download/hills.apk）
+
+  スマホのカメラで読み取ると、リリース画面が開きます。
+
+  <img src="docs/apk-qr.png" alt="Android 版の動作確認用 APK のリリース画面の QR コード" width="200">
+
 - 既定ブランチ（main）に push するたびに GitHub Actions（`.github/workflows/android.yml`）がビルドして、上の Release の APK を差し替えます
 - GitHub Secrets（`ANDROID_KEYSTORE_BASE64` など 4 つ）を登録すると、Google Play 用の署名付き AAB（本番広告）も Actions の Artifact に作ります
 
