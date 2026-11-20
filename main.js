@@ -105,8 +105,9 @@ const isWater = p => (inPoly(p, BAY) && !ISLANDS.some(is => inPoly(p, is))) || d
 // レンダラー・シーン・カメラ
 // ---------------------------------------------------------------------
 const app = document.getElementById('app');
-const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const IS_MOBILE = window.matchMedia('(pointer: coarse)').matches;
+const renderer = new THREE.WebGLRenderer({ antialias: !IS_MOBILE, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 1.3 : 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -147,7 +148,7 @@ scene.add(sky);
 scene.add(new THREE.HemisphereLight(0xdfeeff, 0x6b6450, 1.1));
 const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(IS_MOBILE ? 1024 : 2048, IS_MOBILE ? 1024 : 2048);
 sun.shadow.camera.near = 10;
 sun.shadow.camera.far = 6000;
 sun.shadow.bias = -0.0004;
@@ -585,7 +586,7 @@ const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vec
 const SPOTS = [];
 const Q = 0.25;                 // 頂点座標の単位（m）
 const CHUNK = 800;              // メッシュを分割する格子の大きさ（m）
-const SMALL_VIEW = 2200;        // 小さな建物を描く距離（m）
+const SMALL_VIEW = IS_MOBILE ? 1300 : 2000; // 小さな建物を描く距離（m）
 const smallChunks = [];
 // 本家ヒルズ・東京タワーの足元は自前のモデルを使う
 const PLATEAU_SKIP = [{ x: 0, z: 0, r: 85 }, { ...geo(35.65858, 139.74543), r: 60 }];
@@ -622,7 +623,7 @@ async function loadPlateau(onProgress) {
   if (!res.ok) throw new Error('建物データを読み込めませんでした');
   // サーバーが gzip 圧縮して送ると content-length は圧縮後のサイズになるので、
   // 受け取った断片をためてから最後につなげる（content-length は進捗の目安にだけ使う）
-  const DATA_BYTES = 6176888;
+  const DATA_BYTES = 2915852;
   let buf;
   if (res.body && res.body.getReader) {
     const reader = res.body.getReader();
@@ -723,7 +724,7 @@ async function loadPlateau(onProgress) {
       g.computeBoundingSphere();
       const mesh = new THREE.Mesh(g, plateauMat);
       mesh.scale.setScalar(Q);
-      mesh.castShadow = true;
+      mesh.castShadow = !ci.small; // 小さな建物は影を落とさない（軽くするため）
       mesh.receiveShadow = true;
       scene.add(mesh);
       if (ci.small) smallChunks.push({ mesh, x: ci.cx, z: ci.cz });
@@ -867,20 +868,138 @@ function updateParticles(dt) {
 }
 
 // ---------------------------------------------------------------------
-// 効果音（WebAudio で合成）
+// 効果音・BGM
+//   スタート前の読み込み中に OfflineAudioContext で音声データを作っておき、
+//   プレイ中はそれを再生するだけにする（スマホで音がびりつかないように）
 // ---------------------------------------------------------------------
-let audio = null, master = null, sfxBus = null, bgmBus = null, noiseBuf = null;
+const SR = 44100;
+const sounds = {};
+let audio = null, master = null, sfxBus = null, bgmBus = null, bgmSrc = null;
 let muted = false;
 try { muted = localStorage.getItem('hills_muted') === '1'; } catch (_) { /* ignore */ }
+
+function makeNoise(ctx) {
+  const buf = ctx.createBuffer(1, SR * 2, SR);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+}
+function sNoise(ctx, nb, dest, t, dur, freq, gain, type = 'lowpass', freqEnd) {
+  const src = ctx.createBufferSource(); src.buffer = nb;
+  const f = ctx.createBiquadFilter(); f.type = type; f.frequency.setValueAtTime(freq, t);
+  if (freqEnd) f.frequency.exponentialRampToValueAtTime(freqEnd, t + dur);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f); f.connect(g); g.connect(dest);
+  src.start(t, Math.random()); src.stop(t + dur + 0.05);
+}
+function sTone(ctx, dest, t, type, f0, f1, dur, vol, attack = 0.005) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t);
+  if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + attack);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.02);
+}
+function sPluck(ctx, dest, t, f, dur, vol) { // 三味線っぽい撥音
+  const fl = ctx.createBiquadFilter(), g = ctx.createGain();
+  fl.type = 'lowpass'; fl.frequency.setValueAtTime(f * 6, t); fl.frequency.exponentialRampToValueAtTime(f * 1.5, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  fl.connect(g); g.connect(dest);
+  [['sawtooth', 1], ['square', 1.004]].forEach(([type, k]) => {
+    const o = ctx.createOscillator(); o.type = type; o.frequency.value = f * k;
+    o.connect(fl); o.start(t); o.stop(t + dur + 0.02);
+  });
+}
+function sFlute(ctx, dest, t, f, dur, vol) { // 篠笛っぽい音
+  const o = ctx.createOscillator(), lfo = ctx.createOscillator(), lg = ctx.createGain(), g = ctx.createGain();
+  o.type = 'triangle'; o.frequency.value = f * 2;
+  lfo.frequency.value = 5.5; lg.gain.value = f * 0.012;
+  lfo.connect(lg); lg.connect(o.frequency);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.04);
+  g.gain.setValueAtTime(vol, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(dest);
+  o.start(t); lfo.start(t); o.stop(t + dur + 0.02); lfo.stop(t + dur + 0.02);
+}
+async function renderSound(dur, fn) {
+  const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, Math.ceil(SR * dur), SR);
+  const out = ctx.createGain(); out.connect(ctx.destination);
+  fn(ctx, makeNoise(ctx), out);
+  return ctx.startRendering();
+}
+function normalize(buf, peak = 0.85) {
+  const d = buf.getChannelData(0);
+  let m = 0;
+  for (let i = 0; i < d.length; i++) m = Math.max(m, Math.abs(d[i]));
+  if (m > 0) for (let i = 0; i < d.length; i++) d[i] *= peak / m;
+  return buf;
+}
+
+// BGM：オリジナル曲（ヨナ抜き風の祭り囃子）
+const NOTE = { D3: 146.83, G3: 196.0, A3: 220.0, D4: 293.66, E4: 329.63, G4: 392.0, A4: 440.0, B4: 493.88, D5: 587.33, E5: 659.25 };
+const MELODY = [ // 8分音符 × 8 × 8小節。'.' は前の音をのばす、'-' は休み
+  'D5 . B4 A4 B4 . D5 .', 'E5 D5 B4 . A4 . - -', 'G4 A4 B4 . A4 G4 E4 .', 'D4 . E4 G4 A4 . - -',
+  'D5 . E5 D5 B4 . A4 B4', 'D5 . B4 A4 G4 . - -', 'E4 G4 A4 B4 D5 . B4 A4', 'G4 . A4 . D4 . - -',
+].join(' ').split(' ');
+const BASS = ['D3', 'D3', 'G3', 'D3', 'D3', 'G3', 'A3', 'D3'];
+const TEMPO = 138;
+
+async function prepareSounds(onProgress) {
+  const jobs = {
+    pop: [0.35, (c, nb, d) => { sNoise(c, nb, d, 0, 0.25, 1200, 0.3); sTone(c, d, 0, 'square', 180, 1100, 0.25, 0.2); }],
+    pull: [0.12, (c, nb, d) => { sTone(c, d, 0, 'sawtooth', 85, 85, 0.09, 0.08); }],
+    sprout: [0.2, (c, nb, d) => { sTone(c, d, 0, 'sine', 320, 520, 0.15, 0.12); }],
+    root: [0.6, (c, nb, d) => { sTone(c, d, 0, 'triangle', 140, 40, 0.5, 0.35); }],
+    whistle: [3.1, (c, nb, d) => { sTone(c, d, 0, 'sine', 1400, 260, 3.0, 0.08, 0.9); }],
+    thud: [2.8, (c, nb, d) => { // 着地の地響き：ドン＋ゴゴゴ＋砂ぼこりのザーッ
+      sTone(c, d, 0, 'sine', 75, 28, 1.1, 0.9);
+      sNoise(c, nb, d, 0, 0.35, 1800, 0.5);
+      sNoise(c, nb, d, 0.05, 2.4, 900, 0.35, 'lowpass', 150);
+      sNoise(c, nb, d, 0.15, 1.8, 3000, 0.08, 'highpass');
+    }],
+  };
+  const names = Object.keys(jobs);
+  for (let i = 0; i < names.length; i++) {
+    const [dur, fn] = jobs[names[i]];
+    sounds[names[i]] = normalize(await renderSound(dur, fn), names[i] === 'pull' ? 0.3 : 0.8);
+    onProgress((i + 1) / (names.length + 3));
+  }
+  // BGM 1ループ分（はみ出した余韻は先頭に重ねて、つなぎ目なくループさせる）
+  const e = 60 / TEMPO / 2, loop = e * 64;
+  const raw = await renderSound(loop + 1, (c, nb, d) => {
+    for (let i = 0; i < 64; i++) {
+      const t = i * e, bar = Math.floor(i / 8), b = i % 8, n = MELODY[i];
+      if (n !== '.' && n !== '-') {
+        let len = 1;
+        while (MELODY[(i + len) % 64] === '.') len++;
+        sFlute(c, d, t, NOTE[n], e * len * 0.95, 0.09);
+        sPluck(c, d, t, NOTE[n], 0.22, 0.05);
+      }
+      if (b % 2 === 0) sPluck(c, d, t, NOTE[BASS[bar]] / 2, 0.3, 0.09);
+      if (b === 0 || b === 4) { sTone(c, d, t, 'sine', 130, 55, 0.4, 0.5); sNoise(c, nb, d, t, 0.06, 900, 0.2); }
+      if (bar % 2 === 1 && b === 6) [0, e / 2].forEach(dt => sTone(c, d, t + dt, 'sine', 130, 55, 0.4, 0.35));
+      if (b % 2 === 1) [1870, 2630].forEach(f => sTone(c, d, t, 'square', f, f, 0.09, 0.02, 0.002));
+    }
+  });
+  onProgress((names.length + 2) / (names.length + 3));
+  const len = Math.round(loop * SR);
+  const bgmBuf = new AudioBuffer({ length: len, numberOfChannels: 1, sampleRate: SR });
+  const src = raw.getChannelData(0), dst = bgmBuf.getChannelData(0);
+  for (let i = 0; i < len; i++) dst[i] = src[i] + (i + len < src.length ? src[i + len] : 0);
+  sounds.bgm = normalize(bgmBuf, 0.8);
+  onProgress(1);
+}
+
 function ensureAudio() {
   if (audio) { if (audio.state === 'suspended') audio.resume(); return audio; }
-  audio = new (window.AudioContext || window.webkitAudioContext)();
-  master = audio.createGain(); master.gain.value = muted ? 0 : 1; master.connect(audio.destination);
-  sfxBus = audio.createGain(); sfxBus.gain.value = 0.9; sfxBus.connect(master);
-  bgmBus = audio.createGain(); bgmBus.gain.value = 0.32; bgmBus.connect(master);
-  noiseBuf = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
-  const d = noiseBuf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  audio = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'playback' });
+  const comp = audio.createDynamicsCompressor(); // 音が重なっても割れないように
+  comp.threshold.value = -12; comp.ratio.value = 6;
+  master = audio.createGain(); master.gain.value = muted ? 0 : 1;
+  master.connect(comp); comp.connect(audio.destination);
+  sfxBus = audio.createGain(); sfxBus.gain.value = 0.7; sfxBus.connect(master);
+  bgmBus = audio.createGain(); bgmBus.gain.value = 0.3; bgmBus.connect(master);
   return audio;
 }
 function setMuted(m) {
@@ -889,143 +1008,43 @@ function setMuted(m) {
   if (master) master.gain.setTargetAtTime(m ? 0 : 1, audio.currentTime, 0.05);
   document.getElementById('mute').textContent = m ? '🔇' : '🔊';
 }
-function noise(t, dur, freq, gain, type = 'lowpass', dest = sfxBus) {
-  const src = audio.createBufferSource(); src.buffer = noiseBuf;
-  const f = audio.createBiquadFilter(); f.type = type; f.frequency.value = freq;
-  const g = audio.createGain();
-  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  src.connect(f); f.connect(g); g.connect(dest);
-  src.start(t, Math.random()); src.stop(t + dur + 0.05);
-  return f;
+function playSound(name, volume = 1, rate = 1) {
+  if (!audio || !sounds[name]) return;
+  const src = audio.createBufferSource();
+  src.buffer = sounds[name];
+  src.playbackRate.value = rate;
+  const g = audio.createGain(); g.gain.value = volume;
+  src.connect(g); g.connect(sfxBus);
+  src.start();
 }
 function sfx(type, opt = {}) {
   try {
     ensureAudio();
-    const t = audio.currentTime;
-    const o = audio.createOscillator(), g = audio.createGain();
-    o.connect(g); g.connect(sfxBus);
-    if (type === 'thud') { // 着地の地響き
-      const v = opt.volume ?? 1;
-      o.type = 'sine';
-      o.frequency.setValueAtTime(75, t); o.frequency.exponentialRampToValueAtTime(28, t + 0.9);
-      g.gain.setValueAtTime(0.9 * v, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.1);
-      o.start(t); o.stop(t + 1.2);
-      noise(t, 0.35, 1800, 0.5 * v);                 // ドン
-      const f = noise(t + 0.05, 2.4, 500, 0.35 * v); // ゴゴゴ…（地吹雪）
-      f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(150, t + 2.4);
-      noise(t + 0.15, 1.8, 3000, 0.08 * v, 'highpass'); // 砂ぼこりのザーッ
-      return;
-    }
-    if (type === 'whistle') { // 落ちてくるヒュ〜
-      const T = opt.dur || 2;
-      o.type = 'sine';
-      o.frequency.setValueAtTime(1400, t); o.frequency.exponentialRampToValueAtTime(260, t + T);
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + T * 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + T);
-      o.start(t); o.stop(t + T + 0.05);
-      return;
-    }
-    if (type === 'pop') {
-      noise(t, 0.25, 1200, 0.25);
-      o.type = 'square';
-      o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(1100, t + 0.12);
-      g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-      o.start(t); o.stop(t + 0.26);
-    } else if (type === 'pull') {
-      o.type = 'sawtooth';
-      o.frequency.setValueAtTime(70 + Math.random() * 30, t);
-      g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-      o.start(t); o.stop(t + 0.09);
-    } else if (type === 'root') {
-      o.type = 'triangle';
-      o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.5);
-      g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-      o.start(t); o.stop(t + 0.51);
-    } else if (type === 'sprout') {
-      o.type = 'sine';
-      o.frequency.setValueAtTime(320, t); o.frequency.exponentialRampToValueAtTime(520, t + 0.1);
-      g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-      o.start(t); o.stop(t + 0.16);
-    }
+    if (type === 'thud') playSound('thud', opt.volume ?? 1);
+    else if (type === 'whistle') playSound('whistle', 1, clamp(3 / (opt.dur || 3), 0.6, 2));
+    else if (type === 'pull') playSound('pull', 1, rand(0.85, 1.15));
+    else playSound(type);
   } catch (_) { /* 音が出なくてもゲームは続ける */ }
-}
-
-// ---------------------------------------------------------------------
-// BGM：WebAudio で合成するオリジナル曲（ヨナ抜き風の祭り囃子）
-// ---------------------------------------------------------------------
-const NOTE = { D3: 146.83, G3: 196.0, A3: 220.0, B3: 246.94, D4: 293.66, E4: 329.63, G4: 392.0, A4: 440.0, B4: 493.88, D5: 587.33, E5: 659.25, G5: 783.99 };
-// 8分音符 × 8 × 8小節。'.' は前の音をのばす、'-' は休み
-const MELODY = [
-  'D5 . B4 A4 B4 . D5 .', 'E5 D5 B4 . A4 . - -', 'G4 A4 B4 . A4 G4 E4 .', 'D4 . E4 G4 A4 . - -',
-  'D5 . E5 D5 B4 . A4 B4', 'D5 . B4 A4 G4 . - -', 'E4 G4 A4 B4 D5 . B4 A4', 'G4 . A4 . D4 . - -',
-].join(' ').split(' ');
-const BASS = ['D3', 'D3', 'G3', 'D3', 'D3', 'G3', 'A3', 'D3'];
-const bgm = { on: false, step: 0, next: 0, timer: null, tempo: 138 };
-function pluck(t, f, dur, vol) { // 三味線っぽい撥音
-  const o = audio.createOscillator(), o2 = audio.createOscillator(), fl = audio.createBiquadFilter(), g = audio.createGain();
-  o.type = 'sawtooth'; o2.type = 'square';
-  o.frequency.value = f; o2.frequency.value = f * 1.004;
-  fl.type = 'lowpass'; fl.frequency.setValueAtTime(f * 6, t); fl.frequency.exponentialRampToValueAtTime(f * 1.5, t + dur);
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
-  o.connect(fl); o2.connect(fl); fl.connect(g); g.connect(bgmBus);
-  o.start(t); o2.start(t); o.stop(t + dur + 0.02); o2.stop(t + dur + 0.02);
-}
-function flute(t, f, dur, vol) { // 篠笛っぽい音
-  const o = audio.createOscillator(), lfo = audio.createOscillator(), lg = audio.createGain(), g = audio.createGain();
-  o.type = 'triangle'; o.frequency.value = f * 2;
-  lfo.frequency.value = 5.5; lg.gain.value = f * 0.012;
-  lfo.connect(lg); lg.connect(o.frequency);
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.04); g.gain.setValueAtTime(vol, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g); g.connect(bgmBus);
-  o.start(t); lfo.start(t); o.stop(t + dur + 0.02); lfo.stop(t + dur + 0.02);
-}
-function taiko(t, vol) {
-  const o = audio.createOscillator(), g = audio.createGain();
-  o.type = 'sine'; o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(55, t + 0.25);
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-  o.connect(g); g.connect(bgmBus); o.start(t); o.stop(t + 0.42);
-  noise(t, 0.06, 900, vol * 0.4, 'lowpass', bgmBus);
-}
-function kane(t, vol) { // チャンチキ
-  [1870, 2630].forEach(f => {
-    const o = audio.createOscillator(), g = audio.createGain();
-    o.type = 'square'; o.frequency.value = f;
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.09);
-    o.connect(g); g.connect(bgmBus); o.start(t); o.stop(t + 0.1);
-  });
-}
-function scheduleBgm() {
-  const e = 60 / bgm.tempo / 2; // 8分音符
-  while (bgm.next < audio.currentTime + 0.15) {
-    const t = bgm.next, i = bgm.step % 64, bar = Math.floor(i / 8), b = i % 8;
-    const n = MELODY[i];
-    if (n !== '.' && n !== '-') {
-      let len = 1;
-      while (MELODY[(i + len) % 64] === '.') len++;
-      flute(t, NOTE[n], e * len * 0.95, 0.09);
-      pluck(t, NOTE[n], 0.22, 0.05);
-    }
-    if (b % 2 === 0) pluck(t, NOTE[BASS[bar]] / 2, 0.3, 0.09);
-    if (b === 0 || b === 4) taiko(t, 0.5);
-    if (bar % 2 === 1 && b === 6) { taiko(t, 0.35); taiko(t + e / 2, 0.35); }
-    if (b % 2 === 1) kane(t, 0.025);
-    bgm.next += e;
-    bgm.step++;
-  }
 }
 function startBgm() {
   try {
     ensureAudio();
-    if (bgm.on) return;
-    bgm.on = true; bgm.step = 0; bgm.next = audio.currentTime + 0.1;
-    bgmBus.gain.setTargetAtTime(0.32, audio.currentTime, 0.1);
-    bgm.timer = setInterval(scheduleBgm, 40);
+    if (bgmSrc || !sounds.bgm) return;
+    bgmSrc = audio.createBufferSource();
+    bgmSrc.buffer = sounds.bgm;
+    bgmSrc.loop = true;
+    bgmSrc.connect(bgmBus);
+    bgmBus.gain.cancelScheduledValues(audio.currentTime);
+    bgmBus.gain.setValueAtTime(0.3, audio.currentTime);
+    bgmSrc.start(audio.currentTime + 0.05);
   } catch (_) { /* ignore */ }
 }
 function stopBgm() {
-  if (!bgm.on) return;
-  bgm.on = false;
-  clearInterval(bgm.timer);
-  if (bgmBus) bgmBus.gain.setTargetAtTime(0.0001, audio.currentTime, 0.3);
+  if (!bgmSrc) return;
+  const src = bgmSrc;
+  bgmSrc = null;
+  bgmBus.gain.setTargetAtTime(0.0001, audio.currentTime, 0.3);
+  src.stop(audio.currentTime + 1.5);
 }
 
 // ---------------------------------------------------------------------
@@ -1175,10 +1194,14 @@ function spawn(near) {
 }
 
 function requiredPull(s) {
-  return window.innerHeight * (0.1 + s.grow * 0.55 + (s.state === 'ripe' ? 0.2 : 0));
+  // 若いほど短いスワイプで抜ける。いちばん育ったものでも画面の高さの4割強
+  // 早く見つけるほど楽：若いほど短いスワイプで抜ける。根付くと何回もスワイプが必要
+  if (s.state === 'rooted') return window.innerHeight * 1.6;
+  return window.innerHeight * (0.07 + s.grow * 0.26 + (s.state === 'ripe' ? 0.1 : 0));
 }
 
 function grade(s) {
+  if (s.state === 'rooted') return { pts: 30, name: '根っこごと引っこ抜いた！', key: 'old', color: '#ffb36b' };
   if (s.state === 'ripe') return { pts: 20, name: 'ギリギリセーフ', key: 'old', color: '#ff8c5a' };
   if (s.grow < 0.12) return { pts: 500, name: '極上の朝掘り！', key: 'gold', color: '#ffe14d' };
   if (s.grow < 0.35) return { pts: 250, name: '上物！', key: 'good', color: '#7dff9a' };
@@ -1197,6 +1220,8 @@ function yank(s) {
   game.counts[g.key]++;
   if (pts > game.best.pts) game.best = { name: g.name, pts };
 
+  if (s.state === 'rooted') game.rooted = Math.max(0, game.rooted - 1);
+  if (!everPulled) { everPulled = true; try { localStorage.setItem('hills_pulled', '1'); } catch (_) { /* ignore */ } }
   s.state = 'fly';
   s.t = 0;
   s.grabbed = false;
@@ -1253,8 +1278,10 @@ function updateSprouts(dt) {
       s.mound.scale.set(k, k * (1 + Math.sin(s.t * 30) * 0.2), k);
       if (Math.random() < dt * 8) dirt(s.spot.x, 0, s.spot.z, 2, 0.4);
       if (s.t > 1.2) { s.state = 'grow'; s.t = 0; sfx('sprout'); }
-    } else if (s.state === 'grow' || s.state === 'ripe') {
-      if (s.state === 'grow') {
+    } else if (s.state === 'grow' || s.state === 'ripe' || s.state === 'rooted') {
+      if (s.state === 'rooted') {
+        // 根付いたヒルズ：抜けないことはないが、何回もスワイプが必要
+      } else if (s.state === 'grow') {
         if (!s.grabbed) s.grow = Math.min(1, s.grow + dt / s.growTime);
         if (s.grow >= 1) { s.state = 'ripe'; s.t = 0; }
       } else {
@@ -1271,7 +1298,7 @@ function updateSprouts(dt) {
           if (game.rooted >= ROOT_LIMIT) endGame('港区がヒルズに占領された！');
         }
       }
-      if (!s.grabbed) s.loosen = Math.max(0, s.loosen - requiredPull(s) * 0.3 * dt);
+      if (!s.grabbed) s.loosen = Math.max(0, s.loosen - requiredPull(s) * 0.12 * dt);
       const looseK = Math.min(1, s.loosen / requiredPull(s));
       s.lift = lerp(s.lift, looseK * 40, Math.min(1, dt * 12));
       const wob = s.state === 'ripe' ? Math.sin(s.t * 18) * 0.012 : 0;
@@ -1379,8 +1406,14 @@ function endGame(reason) {
 
 const startBtn = document.getElementById('start');
 startBtn.disabled = true;
-startBtn.textContent = '街を読み込み中… 0%';
-Promise.all([loadPlateau(k => { startBtn.textContent = `街を読み込み中… ${Math.round(k * 100)}%`; }), loadRoads()]).then(([info]) => info)
+startBtn.textContent = '街と音を読み込み中… 0%';
+const loadProg = { city: 0, sound: 0 };
+const showProg = () => { startBtn.textContent = `街と音を読み込み中… ${Math.round((loadProg.city * 0.85 + loadProg.sound * 0.15) * 100)}%`; };
+Promise.all([
+  loadPlateau(k => { loadProg.city = k; showProg(); }),
+  loadRoads(),
+  prepareSounds(k => { loadProg.sound = k; showProg(); }).catch(err => console.warn('音の準備に失敗', err)),
+]).then(([info]) => info)
   .then(info => {
     startBtn.disabled = false;
     startBtn.textContent = 'はじめる';
@@ -1407,16 +1440,16 @@ const pull = { sprout: null, id: null };
 let multi = null;
 const el = renderer.domElement;
 
-function pickSprout(x, y) {
+function pickSprout(x, y, extra = 0) {
   let bestS = null, bestD = Infinity;
   sprouts.forEach(s => {
-    if (s.state !== 'grow' && s.state !== 'ripe') return;
+    if (s.state !== 'grow' && s.state !== 'ripe' && s.state !== 'rooted') return;
     const top = Math.max(15, s.group.position.y + HILLS_H);
     const a = project(s.spot.x, 0, s.spot.z);
     const b = project(s.spot.x, top, s.spot.z);
     if (!a.front) return;
     const side = project(s.spot.x + 70, 0, s.spot.z);
-    const halfW = Math.max(36, Math.hypot(side.x - a.x, side.y - a.y) + 16);
+    const halfW = Math.max(70, Math.hypot(side.x - a.x, side.y - a.y) + 40) + extra;
     const dx = b.x - a.x, dy = b.y - a.y;
     const t = clamp(((x - a.x) * dx + (y - a.y) * dy) / (dx * dx + dy * dy || 1), 0, 1);
     const d = Math.hypot(x - a.x - dx * t, y - a.y - dy * t);
@@ -1425,15 +1458,23 @@ function pickSprout(x, y) {
   return bestS;
 }
 
+// 指を置いてから最初に動いた方向で操作を決める
+//   上 → 引っこ抜き（指の下のヒルズ、なければ近くのヒルズ）
+//   左右 → 回転（上下の動きでは回転しない）
+//   2本指 → ピンチで拡大・縮小。別の場所へは矢印やレーダーのタップで移動
+//   下 → 何もしない
+const DECIDE_PX = 10;
+function pickNearSprout(x, y) {
+  return pickSprout(x, y) || pickSprout(x, y, 170);
+}
+function grabSprout(s, id) {
+  pull.sprout = s; pull.id = id; s.grabbed = true; cam.fly = null;
+}
+
 el.addEventListener('pointerdown', e => {
   el.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, button: e.button, shift: e.shiftKey });
-  if (pointers.size === 1) {
-    if (state === 'play' && e.button === 0 && !e.shiftKey) {
-      const s = pickSprout(e.clientX, e.clientY);
-      if (s) { pull.sprout = s; pull.id = e.pointerId; s.grabbed = true; cam.fly = null; }
-    }
-  } else if (pointers.size === 2) {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, button: e.button, shift: e.shiftKey, mode: 'pending' });
+  if (pointers.size === 2) {
     if (pull.sprout) { pull.sprout.grabbed = false; pull.sprout = null; }
     const [p1, p2] = [...pointers.values()];
     multi = { d: Math.hypot(p1.x - p2.x, p1.y - p2.y), a: Math.atan2(p2.y - p1.y, p2.x - p1.x), mx: (p1.x + p2.x) / 2, my: (p1.y + p2.y) / 2 };
@@ -1452,35 +1493,36 @@ el.addEventListener('pointermove', e => {
     const a = Math.atan2(p2.y - p1.y, p2.x - p1.x);
     const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
     cam.dist *= multi.d / Math.max(1, d);
-    let da = a - multi.a;
-    if (da > Math.PI) da -= Math.PI * 2;
-    if (da < -Math.PI) da += Math.PI * 2;
-    cam.heading -= da;
-    panBy(multi.mx, multi.my, mx, my);
     multi = { d, a, mx, my };
     cam.fly = null;
     return;
   }
 
-  if (pull.sprout && pull.id === e.pointerId) {
+  if (p.mode === 'pending') {
+    const dx = e.clientX - p.sx, dy = e.clientY - p.sy;
+    if (Math.hypot(dx, dy) < DECIDE_PX) return;
+    if (Math.abs(dx) >= Math.abs(dy)) p.mode = 'rotate';
+    else if (dy < 0 && state === 'play') {
+      const s = pickNearSprout(p.sx, p.sy);
+      if (s) { grabSprout(s, e.pointerId); p.mode = 'pull'; s.loosen += -dy; }
+      else p.mode = 'none';
+    } else p.mode = 'none';
+  }
+
+  if (p.mode === 'pull') {
     const s = pull.sprout;
+    if (!s || pull.id !== e.pointerId) return;
     const dy = py - e.clientY;
     if (dy > 0) {
       s.loosen += dy;
       if (Math.random() < 0.3) sfx('pull');
       if (Math.random() < 0.4) dirt(s.spot.x, 0, s.spot.z, 2, 0.6);
-      if (s.loosen >= requiredPull(s)) { yank(s); pull.sprout = null; }
     }
-    return;
+    if (s.loosen >= requiredPull(s)) { yank(s); pull.sprout = null; }
+  } else if (p.mode === 'rotate') {
+    // 画面の幅いっぱいのスワイプで半回転。指の動きに街がついてくる向き
+    cam.heading -= (e.clientX - px) / window.innerWidth * Math.PI;
   }
-
-  if (p.button === 2 || p.shift) {
-    cam.heading += (e.clientX - px) * 0.005;
-    cam.fly = null;
-    return;
-  }
-  panBy(px, py, e.clientX, e.clientY);
-  cam.fly = null;
 });
 
 function panBy(x0, y0, x1, y1) {
@@ -1527,12 +1569,44 @@ setMuted(muted);
 // 画面外のヒルズを示す矢印・ランドマーク名・レーダー
 // ---------------------------------------------------------------------
 const arrowEls = new Map();
+// 掴んでいるヒルズの抜け具合ゲージと、最初の操作ガイド
+const pullGauge = document.getElementById('pull-gauge');
+const pullHint = document.getElementById('pull-hint');
+let everPulled = false;
+try { everPulled = localStorage.getItem('hills_pulled') === '1'; } catch (_) { /* ignore */ }
+function updatePullUi() {
+  const s = pull.sprout;
+  if (s && state === 'play') {
+    const k = Math.min(1, s.loosen / requiredPull(s));
+    const p = project(s.spot.x, Math.max(20, s.group.position.y + HILLS_H), s.spot.z);
+    pullGauge.hidden = false;
+    pullGauge.style.left = clamp(p.x, 60, window.innerWidth - 60) + 'px';
+    pullGauge.style.top = clamp(p.y - 40, 90, window.innerHeight - 40) + 'px';
+    pullGauge.firstElementChild.style.width = (k * 100).toFixed(0) + '%';
+  } else {
+    pullGauge.hidden = true;
+  }
+  let target = null;
+  if (!everPulled && state === 'play' && !pull.sprout) {
+    let bestD = Infinity;
+    sprouts.forEach(sp => {
+      if (sp.state !== 'grow' && sp.state !== 'ripe') return;
+      const p = project(sp.spot.x, Math.max(20, sp.group.position.y + HILLS_H * 0.5), sp.spot.z);
+      if (!p.front || p.x < 0 || p.x > window.innerWidth || p.y < 80 || p.y > window.innerHeight) return;
+      const d = Math.hypot(p.x - window.innerWidth / 2, p.y - window.innerHeight / 2);
+      if (d < bestD) { bestD = d; target = p; }
+    });
+  }
+  pullHint.hidden = !target;
+  if (target) { pullHint.style.left = target.x + 'px'; pullHint.style.top = target.y + 'px'; }
+}
+
 function updateArrows() {
   const live = new Set();
   const W = window.innerWidth, H = window.innerHeight;
   if (state === 'play') {
     sprouts.forEach(s => {
-      if (s.state !== 'grow' && s.state !== 'ripe' && s.state !== 'warn') return;
+      if (s.state !== 'grow' && s.state !== 'ripe' && s.state !== 'warn' && s.state !== 'rooted') return;
       const top = Math.max(10, s.group.position.y + HILLS_H * 0.5);
       const p = project(s.spot.x, top, s.spot.z);
       const onScreen = p.front && p.x > 20 && p.x < W - 20 && p.y > 70 && p.y < H - 20;
@@ -1570,7 +1644,8 @@ function updateArrows() {
       const dist = Math.hypot(dx, dz);
       a.querySelector('span').textContent = dist >= 1000 ? (dist / 1000).toFixed(1) + 'km' : Math.round(dist) + 'm';
       a.classList.toggle('ripe', s.state === 'ripe');
-      a.classList.toggle('young', s.state !== 'ripe' && s.grow < 0.35);
+      a.classList.toggle('young', s.state !== 'ripe' && s.state !== 'rooted' && s.grow < 0.35);
+      a.classList.toggle('rooted', s.state === 'rooted');
     });
   }
   arrowEls.forEach((a, s) => { if (!live.has(s)) { a.remove(); arrowEls.delete(s); } });
@@ -1664,6 +1739,7 @@ function loop(now) {
   updateCamera(dt);
   renderer.render(scene, camera);
   updateArrows();
+  updatePullUi();
   updateLabels();
   drawRadar();
   requestAnimationFrame(loop);
