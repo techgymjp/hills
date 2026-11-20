@@ -26,17 +26,50 @@
     <div class="panel" id="title-panel">
       <p class="kicker">港区 筍狩り</p>
       <h1>六本木ヒルズを<br><span>引っこ抜け</span></h1>
-      <ul>
-        <li>港区のあちこちから六本木ヒルズが生えてくる</li>
-        <li>ヒルズの近くで<b>上にスワイプ</b>して引っこ抜け</li>
-        <li><b>顔を出したばかり</b>のヒルズほど高得点</li>
-        <li>育ちきると根付いて、抜くのに<b>何回もスワイプ</b>が必要になる。<b>5本定着</b>で港区陥落</li>
-        <li><b>左右のスワイプ</b>で向きを回転、<b>2本指で下にスワイプ</b>で前進、2本指のピンチで拡大・縮小。画面端の矢印やレーダーをタップするとそこへ移動</li>
-        <li>抜いたヒルズはドスンと落ちて土煙が上がる</li>
-      </ul>
-      <p class="note">舞台：六本木ヒルズから半径5km。建物：国土交通省 Project PLATEAU 3D都市モデル（LOD1）を加工して作成</p>
+      <p class="lead">港区のあちこちから生えてくる<br>六本木ヒルズを、上スワイプで引っこ抜け！</p>
+      <p class="note">舞台：六本木ヒルズから半径5km。建物・道路：国土交通省 Project PLATEAU 3D都市モデルを加工して作成</p>
       <p class="best" id="best"></p>
       <button id="start">はじめる</button>
+      <button id="howto-open" class="sub">遊び方</button>
+    </div>
+    <div class="panel howto" id="howto-panel" hidden>
+      <p class="kicker">遊び方</p>
+      <h2>ルール</h2>
+      <ul>
+        <li>港区のあちこちから六本木ヒルズが生えてくる。<b>上スワイプ</b>で引っこ抜こう</li>
+        <li><b>早く見つけるほど楽に抜けて高得点</b>。育つほど長いスワイプが必要になる</li>
+        <li>育ちきって放っておくと<b>根付く</b>。根付いたヒルズも何回かスワイプすれば抜ける</li>
+        <li>根付いたヒルズが同時に<b>5本</b>になると港区陥落。制限時間は90秒</li>
+        <li>続けて抜くとコンボで点数アップ</li>
+      </ul>
+      <h2>点数</h2>
+      <dl class="table">
+        <dt>極上の朝掘り（顔を出したばかり）</dt><dd>500</dd>
+        <dt>上物</dt><dd>250</dd>
+        <dt>まあまあ</dt><dd>100</dd>
+        <dt>育ちすぎ</dt><dd>40</dd>
+        <dt>根付いたヒルズ</dt><dd>30</dd>
+        <dt>ギリギリセーフ（根付く直前）</dt><dd>20</dd>
+      </dl>
+      <h2>操作</h2>
+      <dl class="table">
+        <dt>引っこ抜く</dt><dd>1本指で上スワイプ</dd>
+        <dt>向きを回転</dt><dd>1本指で左右スワイプ</dd>
+        <dt>前進・後退</dt><dd>2本指で下・上にスワイプ</dd>
+        <dt>拡大・縮小</dt><dd>2本指でピンチ</dd>
+        <dt>遠くへ移動</dt><dd>画面端の矢印・レーダーをタップ</dd>
+      </dl>
+      <h2>レーダー</h2>
+      <ul class="legend">
+        <li><i style="background:#7dff9a"></i>生え始めのヒルズ（今が狙い目）</li>
+        <li><i style="background:#fff"></i>育ってきたヒルズ</li>
+        <li><i style="background:#ff4040"></i>もうすぐ根付くヒルズ</li>
+        <li><i style="background:#777"></i>根付いたヒルズ</li>
+        <li><i class="sq" style="background:#ffcf33"></i>本家・六本木ヒルズ　<i class="sq" style="background:#ff5a1f"></i>東京タワー</li>
+        <li>白い円が今見ている範囲。画面の上が今向いている方向</li>
+      </ul>
+      <p class="note">舞台：六本木ヒルズから半径5km。建物・道路：国土交通省 Project PLATEAU 3D都市モデルを加工して作成</p>
+      <button id="howto-close">もどる</button>
     </div>
     <div class="panel" id="result-panel" hidden>
       <p class="kicker" id="result-reason"></p>

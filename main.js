@@ -1430,6 +1430,9 @@ Promise.all([
     startBtn.textContent = '読み込みに失敗。タップで再読み込み';
     startBtn.dataset.failed = '1';
   });
+const howtoPanel = document.getElementById('howto-panel');
+document.getElementById('howto-open').addEventListener('click', () => { ui.titlePanel.hidden = true; howtoPanel.hidden = false; howtoPanel.scrollTop = 0; });
+document.getElementById('howto-close').addEventListener('click', () => { howtoPanel.hidden = true; ui.titlePanel.hidden = false; });
 startBtn.addEventListener('click', () => {
   if (startBtn.dataset.failed) { location.reload(); return; }
   sfx('sprout'); startBgm(); newGame();

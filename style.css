@@ -1,8 +1,8 @@
 :root{--ink:#14161f;--accent:#ffcf33;--danger:#ff5d5d;--good:#3ee07a}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;overflow:hidden;background:#9fc6e8;font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Yu Gothic',sans-serif;color:#fff;touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#9fc6e8;font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Yu Gothic',sans-serif;color:#fff;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
 #app{position:fixed;inset:0}
-canvas{display:block;width:100%;height:100%}
+canvas{display:block;width:100%;height:100%;touch-action:none}
 #hud{position:absolute;top:calc(10px + env(safe-area-inset-top));left:0;right:0;display:flex;justify-content:center;gap:8px;pointer-events:none;padding:0 10px}
 .pill{background:rgba(20,22,31,.72);border-radius:999px;padding:6px 14px;display:flex;align-items:baseline;gap:6px;font-weight:800;font-size:20px;font-variant-numeric:tabular-nums}
 .pill .label{font-size:11px;opacity:.75}
@@ -50,3 +50,17 @@ button:disabled{opacity:.7;cursor:wait}
 #pull-hint b{display:block;font-size:40px;color:var(--accent)}
 @keyframes hint{0%{margin-top:20px;opacity:.3}60%{margin-top:-30px;opacity:1}100%{margin-top:-40px;opacity:0}}
 .arrow.rooted{border-color:#9a9a9a;opacity:.8}.arrow.rooted i{border-bottom-color:#9a9a9a}
+
+.lead{font-size:15px;line-height:1.7;margin:0 0 16px}
+button.sub{display:block;margin:12px auto 0;font-size:15px;padding:8px 28px;background:transparent;color:#fff;border:2px solid rgba(255,255,255,.6);box-shadow:none}
+button.sub:active{transform:scale(.96);box-shadow:none}
+.howto{max-height:calc(100vh - 32px);overflow-y:auto;text-align:left;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+.howto .kicker{text-align:center}
+.howto h2{font-size:16px;margin:16px 0 8px;color:var(--accent)}
+.howto ul{margin:0}
+.howto button{display:block;margin:18px auto 0}
+dl.table{grid-template-columns:1fr auto;margin:0;font-size:13px}
+dl.table dt{opacity:.85}dl.table dd{text-align:right}
+ul.legend{list-style:none;padding:0;font-size:13px}
+ul.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:8px;vertical-align:-1px}
+ul.legend i.sq{border-radius:2px}
