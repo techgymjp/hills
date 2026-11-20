@@ -17,13 +17,8 @@
   <div id="combo" hidden></div>
   <div id="labels"></div>
   <div id="arrows"></div>
-  <canvas id="radar" width="140" height="140" hidden></canvas>
-  <div id="cam-buttons">
-    <button id="rot-l" aria-label="左に回転">⟲</button>
-    <button id="zoom-in" aria-label="ズームイン">＋</button>
-    <button id="zoom-out" aria-label="ズームアウト">－</button>
-    <button id="rot-r" aria-label="右に回転">⟳</button>
-  </div>
+  <canvas id="radar" width="400" height="400" hidden></canvas>
+  <button id="mute" aria-label="音のオン・オフ">🔊</button>
   <div id="popups"></div>
   <div id="overlay">
     <div class="panel" id="title-panel">
@@ -35,8 +30,9 @@
         <li><b>顔を出したばかり</b>のヒルズほど高得点</li>
         <li>育ちきると根付いてしまう。<b>5本定着</b>で港区陥落</li>
         <li>ドラッグで移動、ピンチでズーム・回転。画面端の矢印やレーダーをタップするとそこへ飛べる</li>
+        <li>抜いたヒルズはドスンと落ちて土煙が上がる</li>
       </ul>
-      <p class="note">舞台：六本木ヒルズから半径5km（ランドマークは実際の位置。一般の建物は手続き生成）</p>
+      <p class="note">舞台：六本木ヒルズから半径5km。建物：国土交通省 Project PLATEAU 3D都市モデル（LOD1）を加工して作成</p>
       <p class="best" id="best"></p>
       <button id="start">はじめる</button>
     </div>

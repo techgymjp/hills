@@ -213,8 +213,6 @@ const groundTex = canvasTex(256, 256, (g, w, h) => {
     g.fillStyle = `rgba(${v},${v - 4},${v - 14},.5)`;
     g.fillRect(Math.random() * w, Math.random() * h, 3, 3);
   }
-  g.strokeStyle = 'rgba(70,70,74,.55)'; g.lineWidth = 6;
-  g.beginPath(); g.moveTo(0, 3); g.lineTo(w, 3); g.moveTo(3, 0); g.lineTo(3, h); g.stroke();
 });
 
 // ---------------------------------------------------------------------
@@ -464,71 +462,18 @@ function makeHills(sprout) {
   });
 }
 
-// 高層ビルのランドマーク
-function towerBox(lat, lon, w, d, h, color, name, opts = {}) {
-  const p = geoV(lat, lon);
-  const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.4, map: buildingTex });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-  body.position.y = h / 2;
-  g.add(body);
-  if (opts.spire) {
-    const s = new THREE.Mesh(new THREE.ConeGeometry(w * 0.35, opts.spire, 4), mat);
-    s.position.y = h + opts.spire / 2;
-    s.rotation.y = Math.PI / 4;
-    g.add(s);
-  }
-  if (opts.crown) {
-    const c = new THREE.Mesh(new THREE.BoxGeometry(w * 1.12, opts.crown, d * 1.12), mat);
-    c.position.y = h - opts.crown / 2;
-    g.add(c);
-  }
-  g.rotation.y = opts.rot || 0;
-  g.position.copy(p);
-  scene.add(shadowAll(g));
-  addLandmark(name, p, h + (opts.spire || 0) + 40, Math.max(w, d));
-  return g;
-}
-towerBox(35.66545, 139.73116, 55, 50, 248, 0xc9d3dd, '東京ミッドタウン', { rot: 0.2 });
-towerBox(35.66680, 139.74960, 62, 45, 255, 0xb9c6d6, '虎ノ門ヒルズ', { crown: 40, rot: -0.3 });
-towerBox(35.66843, 139.74865, 50, 50, 266, 0xd0d8e0, null, { rot: 0.1 });
-towerBox(35.65838, 139.70225, 58, 50, 230, 0xb6c3d3, '渋谷スクランブルスクエア', { rot: 0.4 });
-towerBox(35.68450, 139.70150, 45, 45, 200, 0xa8b1bd, 'ドコモタワー', { spire: 72 });
-towerBox(35.66340, 139.75990, 48, 48, 213, 0x9eb0c4, null, { rot: 0.5 });
-towerBox(35.66100, 139.76230, 50, 40, 210, 0xc4ced8, null, { rot: 0.5 });
-towerBox(35.62850, 139.74000, 55, 45, 160, 0xb0bccb, null);
-towerBox(35.68180, 139.76420, 50, 45, 200, 0xc9cfd6, '丸の内', { rot: 0.15 });
-{ // 麻布台ヒルズ 森JPタワー（丸みのある頂部）
-  const p = geoV(35.66055, 139.73995);
-  const prof = [];
-  for (let i = 0; i <= 24; i++) {
-    const h = i / 24 * 325;
-    const t = h / 325;
-    prof.push(new THREE.Vector2(36 * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, t - 0.75) / 0.25, 2))) + (t > 0.98 ? 0 : 0.5), h));
-  }
-  prof.push(new THREE.Vector2(0, 325));
-  const m = new THREE.Mesh(new THREE.LatheGeometry(prof, 24), new THREE.MeshStandardMaterial({ color: 0xd9dde2, roughness: 0.3, metalness: 0.3, map: buildingTex }));
-  m.position.copy(p);
-  scene.add(shadowAll(m));
-  addLandmark('麻布台ヒルズ', p, 370, 120);
-}
-{ // 東京都庁（ツインタワー）
-  const p = geoV(35.68963, 139.69214);
-  const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: 0xb8b2a8, roughness: 0.6, map: buildingTex });
-  const base = new THREE.Mesh(new THREE.BoxGeometry(110, 160, 40), mat);
-  base.position.y = 80;
-  g.add(base);
-  [-30, 30].forEach(x => {
-    const t = new THREE.Mesh(new THREE.BoxGeometry(34, 83, 34), mat);
-    t.position.set(x, 160 + 41, 0);
-    t.rotation.y = Math.PI / 4 * 0.2;
-    g.add(t);
-  });
-  g.position.copy(p);
-  scene.add(shadowAll(g));
-  addLandmark('東京都庁', p, 290, 150);
-}
+// 高層ビルのランドマーク（建物そのものは PLATEAU のデータで表示し、ここでは名前だけ付ける）
+[
+  ['東京ミッドタウン', 35.66545, 139.73116, 290],
+  ['虎ノ門ヒルズ', 35.66680, 139.74960, 300],
+  ['渋谷スクランブルスクエア', 35.65838, 139.70225, 270],
+  ['ドコモタワー', 35.68450, 139.70150, 300],
+  ['丸の内', 35.68180, 139.76420, 240],
+  ['麻布台ヒルズ', 35.66055, 139.73995, 370],
+  ['東京都庁', 35.68963, 139.69214, 290],
+  ['汐留', 35.66340, 139.75990, 260],
+  ['品川', 35.62850, 139.74000, 200],
+].forEach(([name, lat, lon, y]) => addLandmark(name, geoV(lat, lon), y, 90));
 { // レインボーブリッジ
   const A = geoV(35.6378, 139.7613), B = geoV(35.6343, 139.7668);
   const dir = new THREE.Vector3().subVectors(B, A);
@@ -568,28 +513,12 @@ towerBox(35.68180, 139.76420, 50, 45, 200, 0xc9cfd6, '丸の内', { rot: 0.15 })
 }
 
 // ---------------------------------------------------------------------
-// ヒルズが生えてくる候補地
+// 遠景の街並み（PLATEAU データの範囲外＝半径6km より外は手続き生成）
 // ---------------------------------------------------------------------
-const SPOTS = [];
-{
-  let tries = 0;
-  while (SPOTS.length < 320 && tries++ < 20000) {
-    const r = Math.sqrt(srand()) * (STAGE_R - 150);
-    const a = srand() * Math.PI * 2;
-    const p = { x: Math.cos(a) * r, z: Math.sin(a) * r };
-    if (isWater(p)) continue;
-    if (reserved.some(q => Math.hypot(p.x - q.x, p.z - q.z) < q.r + 150)) continue;
-    if (SPOTS.some(q => Math.hypot(p.x - q.x, p.z - q.z) < 260)) continue;
-    SPOTS.push({ ...p, used: false });
-  }
-}
-
-// ---------------------------------------------------------------------
-// 一般の街並み（地区ごとの密度で手続き生成）
-// ---------------------------------------------------------------------
+const PLATEAU_R = 6000;
+const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _e = new THREE.Euler(), _c = new THREE.Color();
 {
   const mats = new THREE.MeshStandardMaterial({ color: 0xffffff, map: buildingTex, roughness: 0.75, metalness: 0.1 });
-  buildingTex.repeat.set(1, 1);
   const geom = new THREE.BoxGeometry(1, 1, 1);
   geom.translate(0, 0.5, 0);
   const items = [];
@@ -604,7 +533,6 @@ const SPOTS = [];
         if (srand() > keep) continue;
         if (isWater(p) || inPark(p)) continue;
         if (reserved.some(q => Math.hypot(p.x - q.x, p.z - q.z) < q.r)) continue;
-        if (SPOTS.some(q => Math.hypot(p.x - q.x, p.z - q.z) < 95)) continue;
         let hub = 0;
         HUBS.forEach(h => { hub = Math.max(hub, h.k * Math.exp(-((p.x - h.x) ** 2 + (p.z - h.z) ** 2) / (2 * h.s * h.s))); });
         let h = 8 + Math.pow(srand(), 2.2) * 45 + hub * 40;
@@ -618,19 +546,15 @@ const SPOTS = [];
       }
     }
   }
-  place(64, 0, 5600, 0.78, 1);
-  place(100, 5600, 7500, 0.6, 0.8);
-  place(170, 7500, 14000, 0.55, 0.6);
-
+  place(110, PLATEAU_R + 60, 8000, 0.6, 0.8);
+  place(170, 8000, 14000, 0.55, 0.6);
   const mesh = new THREE.InstancedMesh(geom, mats, items.length);
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), e = new THREE.Euler(), c = new THREE.Color();
   items.forEach((b, i) => {
-    q.setFromEuler(e.set(0, b.rot, 0));
-    m.compose(new THREE.Vector3(b.x, 0, b.z), q, s.set(b.w, b.h, b.d));
-    mesh.setMatrixAt(i, m);
-    mesh.setColorAt(i, c.setHex(b.col).offsetHSL(0, 0, (srand() - 0.5) * 0.06));
+    _q.setFromEuler(_e.set(0, b.rot, 0));
+    _m4.compose(new THREE.Vector3(b.x, 0, b.z), _q, _s.set(b.w, b.h, b.d));
+    mesh.setMatrixAt(i, _m4);
+    mesh.setColorAt(i, _c.setHex(b.col).offsetHSL(0, 0, (srand() - 0.5) * 0.06));
   });
-  mesh.castShadow = true;
   mesh.receiveShadow = true;
   scene.add(mesh);
 
@@ -643,21 +567,194 @@ const SPOTS = [];
       trees.push({ x: k.x + Math.cos(a) * r * k.rx * 0.95, z: k.z + Math.sin(a) * r * k.rz * 0.95, s: 9 + srand() * 9 });
     }
   });
-  // 街路樹（候補地のまわりに少し）
-  SPOTS.forEach(sp => {
-    for (let i = 0; i < 5; i++) {
-      const a = srand() * Math.PI * 2;
-      trees.push({ x: sp.x + Math.cos(a) * 85, z: sp.z + Math.sin(a) * 85, s: 6 + srand() * 4 });
-    }
-  });
   const treeMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0x4d7a3a, roughness: 1, flatShading: true }), trees.length);
   trees.forEach((t, i) => {
-    m.compose(new THREE.Vector3(t.x, t.s * 0.9, t.z), q.identity(), s.set(t.s, t.s * 1.1, t.s));
-    treeMesh.setMatrixAt(i, m);
-    treeMesh.setColorAt(i, c.setHex(0x4d7a3a).offsetHSL((srand() - 0.5) * 0.05, 0, (srand() - 0.5) * 0.1));
+    _m4.compose(new THREE.Vector3(t.x, t.s * 0.9, t.z), _q.identity(), _s.set(t.s, t.s * 1.1, t.s));
+    treeMesh.setMatrixAt(i, _m4);
+    treeMesh.setColorAt(i, _c.setHex(0x4d7a3a).offsetHSL((srand() - 0.5) * 0.05, 0, (srand() - 0.5) * 0.1));
   });
   treeMesh.castShadow = true;
   scene.add(treeMesh);
+}
+
+// ---------------------------------------------------------------------
+// PLATEAU の建物（data/buildings.bin）
+//   出典：国土交通省 Project PLATEAU 3D都市モデル（LOD1）を加工して作成
+//   形式：Uint32 件数、各建物 [Uint16 高さ(0.1m), Uint8 種別, Uint8 頂点数, (Int16 東, Int16 南)×n]（0.25m単位）
+// ---------------------------------------------------------------------
+const SPOTS = [];
+const Q = 0.25;                 // 頂点座標の単位（m）
+const CHUNK = 800;              // メッシュを分割する格子の大きさ（m）
+const SMALL_VIEW = 2200;        // 小さな建物を描く距離（m）
+const smallChunks = [];
+// 本家ヒルズ・東京タワーの足元は自前のモデルを使う
+const PLATEAU_SKIP = [{ x: 0, z: 0, r: 85 }, { ...geo(35.65858, 139.74543), r: 60 }];
+
+const plateauMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.8, metalness: 0.05, side: THREE.DoubleSide });
+plateauMat.onBeforeCompile = sh => {
+  sh.vertexShader = sh.vertexShader
+    .replace('#include <common>', '#include <common>\nvarying vec3 vLocal;')
+    .replace('#include <begin_vertex>', `#include <begin_vertex>\nvLocal = position * ${Q.toFixed(2)};`);
+  sh.fragmentShader = sh.fragmentShader
+    .replace('#include <common>', '#include <common>\nvarying vec3 vLocal;')
+    .replace('#include <color_fragment>', `#include <color_fragment>
+      vec3 ln = normalize(cross(dFdx(vLocal), dFdy(vLocal)));
+      if (abs(ln.y) < 0.5) {
+        float fy = fract(vLocal.y / 3.6);
+        float fh = fract((vLocal.x + vLocal.z) / 3.2);
+        float win = step(0.38, fy) * step(0.18, fh) * step(fh, 0.82) * step(3.0, vLocal.y);
+        float aa = clamp(1.0 - fwidth(vLocal.y / 3.6) * 2.5, 0.0, 1.0);
+        diffuseColor.rgb *= mix(1.0, 0.6, win * aa);
+      } else {
+        diffuseColor.rgb *= 0.82;
+      }`);
+};
+
+const PALETTES = [
+  [0xc4c2bc, 0xb3b5ba, 0xd2cec4, 0xa9adb4],          // その他
+  [0xe3ddd0, 0xd8cfbf, 0xeae6dc, 0xcfc4b2, 0xc9bfae], // 住宅
+  [0x9fb3c9, 0x8ea2b8, 0xb5c3d2, 0xa8b0ba, 0xc2cad3], // 業務・商業
+  [0xd9d2c3, 0xcfc8b8, 0xe0dbd0],                     // 文教・医療・官公庁
+];
+
+async function loadPlateau(onProgress) {
+  const res = await fetch('data/buildings.bin');
+  if (!res.ok) throw new Error('建物データを読み込めませんでした');
+  const total = +res.headers.get('content-length') || 0;
+  let buf;
+  if (res.body && total) {
+    const reader = res.body.getReader();
+    const bytes = new Uint8Array(total);
+    let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes.set(value, got); got += value.length;
+      onProgress(got / total * 0.6);
+    }
+    buf = bytes.buffer;
+  } else {
+    buf = await res.arrayBuffer();
+  }
+  const dv = new DataView(buf);
+  const n = dv.getUint32(0, true);
+
+  // 1回目：建物ごとの情報と、格子ごとの頂点・インデックス数を数える
+  const recs = [];
+  const chunkInfo = new Map();
+  const grid = new Map(); // 候補地探し用（100m 格子）
+  let p = 4;
+  for (let i = 0; i < n; i++) {
+    const h = dv.getUint16(p, true) / 10, kind = dv.getUint8(p + 2), np = dv.getUint8(p + 3);
+    const off = p + 4;
+    p = off + np * 4;
+    let cx = 0, cz = 0, area = 0;
+    for (let j = 0; j < np; j++) {
+      const x = dv.getInt16(off + j * 4, true) * Q, z = dv.getInt16(off + j * 4 + 2, true) * Q;
+      const k = (j + 1) % np;
+      const x2 = dv.getInt16(off + k * 4, true) * Q, z2 = dv.getInt16(off + k * 4 + 2, true) * Q;
+      cx += x; cz += z; area += x * z2 - x2 * z;
+    }
+    cx /= np; cz /= np; area = Math.abs(area) / 2;
+    if (PLATEAU_SKIP.some(s => Math.hypot(cx - s.x, cz - s.z) < s.r)) continue;
+    let rad = 0;
+    for (let j = 0; j < np; j++) rad = Math.max(rad, Math.hypot(dv.getInt16(off + j * 4, true) * Q - cx, dv.getInt16(off + j * 4 + 2, true) * Q - cz));
+    const small = h < 13 && area < 250;
+    const key = Math.floor(cx / CHUNK) + ',' + Math.floor(cz / CHUNK) + (small ? 's' : 'b');
+    let ci = chunkInfo.get(key);
+    if (!ci) { ci = { v: 0, t: 0, small, cx: (Math.floor(cx / CHUNK) + 0.5) * CHUNK, cz: (Math.floor(cz / CHUNK) + 0.5) * CHUNK, list: [] }; chunkInfo.set(key, ci); }
+    ci.list.push(recs.length);
+    ci.v += np * 2; ci.t += np * 2 + (np - 2);
+    recs.push({ off, np, h, kind, cx, cz });
+    const gk = Math.floor(cx / 100) + ',' + Math.floor(cz / 100);
+    if (!grid.has(gk)) grid.set(gk, []);
+    grid.get(gk).push(cx, cz, rad);
+    if (i % 20000 === 0) { onProgress(0.6 + i / n * 0.1); await new Promise(r => setTimeout(r)); }
+  }
+
+  // 2回目：格子ごとに外壁と屋上のメッシュを作る（1メッシュ 65535 頂点まで）
+  const contour = [];
+  let done = 0;
+  for (const ci of chunkInfo.values()) {
+    let start = 0;
+    while (start < ci.list.length) {
+      let v = 0, t = 0, end = start;
+      while (end < ci.list.length && v + recs[ci.list[end]].np * 2 <= 65535) {
+        const r = recs[ci.list[end]]; v += r.np * 2; t += r.np * 2 + r.np - 2; end++;
+      }
+      const pos = new Int16Array(v * 3), col = new Uint8Array(v * 3), idx = new Uint16Array(t * 3);
+      let vi = 0, ii = 0;
+      for (let b = start; b < end; b++) {
+        const r = recs[ci.list[b]];
+        const pal = PALETTES[r.kind] || PALETTES[0];
+        let cHex = pal[(r.off * 7 + r.np) % pal.length];
+        if (r.h > 60) cHex = PALETTES[2][(r.off >> 3) % PALETTES[2].length];
+        _c.setHex(cHex).offsetHSL(0, 0, (((r.off * 13) % 17) / 17 - 0.5) * 0.08);
+        const cr = _c.r * 255, cg = _c.g * 255, cb = _c.b * 255;
+        const base = vi;
+        const top = Math.round(r.h / Q);
+        contour.length = 0;
+        for (let j = 0; j < r.np; j++) {
+          const x = dv.getInt16(r.off + j * 4, true), z = dv.getInt16(r.off + j * 4 + 2, true);
+          pos.set([x, 0, z], (base + j) * 3);
+          pos.set([x, top, z], (base + r.np + j) * 3);
+          contour.push(new THREE.Vector2(x, z));
+        }
+        for (let j = 0; j < r.np * 2; j++) col.set([cr, cg, cb], (base + j) * 3);
+        for (let j = 0; j < r.np; j++) {
+          const k = (j + 1) % r.np;
+          idx.set([base + j, base + k, base + r.np + k, base + j, base + r.np + k, base + r.np + j], ii); ii += 6;
+        }
+        const tris = THREE.ShapeUtils.triangulateShape(contour, []);
+        for (let q = 0; q < tris.length && q < r.np - 2; q++) {
+          idx.set([base + r.np + tris[q][0], base + r.np + tris[q][1], base + r.np + tris[q][2]], ii); ii += 3;
+        }
+        vi += r.np * 2;
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
+      g.setIndex(new THREE.BufferAttribute(ii === idx.length ? idx : idx.slice(0, ii), 1));
+      g.computeBoundingSphere();
+      const mesh = new THREE.Mesh(g, plateauMat);
+      mesh.scale.setScalar(Q);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      if (ci.small) smallChunks.push({ mesh, x: ci.cx, z: ci.cz });
+      start = end;
+    }
+    if (++done % 20 === 0) { onProgress(0.7 + done / chunkInfo.size * 0.28); await new Promise(r => setTimeout(r)); }
+  }
+
+  // ヒルズが生えてくる候補地：まわり 40m に建物がない陸地
+  const clearance = (x, z) => {
+    let best = Infinity;
+    const gx = Math.floor(x / 100), gz = Math.floor(z / 100);
+    for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) {
+      const arr = grid.get((gx + a) + ',' + (gz + b));
+      if (!arr) continue;
+      for (let k = 0; k < arr.length; k += 3) best = Math.min(best, Math.hypot(arr[k] - x, arr[k + 1] - z) - arr[k + 2]);
+    }
+    return best;
+  };
+  let tries = 0;
+  while (SPOTS.length < 260 && tries++ < 60000) {
+    const r = Math.sqrt(srand()) * (STAGE_R - 150);
+    const a = srand() * Math.PI * 2;
+    const sp = { x: Math.cos(a) * r, z: Math.sin(a) * r };
+    if (isWater(sp)) continue;
+    if (reserved.some(q => Math.hypot(sp.x - q.x, sp.z - q.z) < q.r + 120)) continue;
+    if (SPOTS.some(q => Math.hypot(sp.x - q.x, sp.z - q.z) < 250)) continue;
+    if (clearance(sp.x, sp.z) < 40) continue;
+    SPOTS.push({ ...sp, used: false });
+  }
+  onProgress(1);
+  return { buildings: recs.length, spots: SPOTS.length };
+}
+
+function updateSmallChunks() {
+  for (const c of smallChunks) c.mesh.visible = Math.hypot(c.x - camera.position.x, c.z - camera.position.z) < SMALL_VIEW + cam.dist * 0.3;
 }
 
 // ---------------------------------------------------------------------
@@ -681,6 +778,59 @@ function dirt(x, y, z, n, power = 1) {
     pLife[k] = rand(0.8, 1.6);
   }
 }
+// 土煙（もくもく広がる煙のスプライト）
+const smokeTex = canvasTex(64, 64, (g, w, h) => {
+  const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.5, 'rgba(255,255,255,.55)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+}, false);
+const smokes = [];
+for (let i = 0; i < 180; i++) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, color: 0xb59a78, transparent: true, depthWrite: false, opacity: 0 }));
+  sp.visible = false;
+  scene.add(sp);
+  smokes.push({ sp, life: 0, max: 1, vel: new THREE.Vector3(), s0: 1, s1: 1 });
+}
+let smokeCursor = 0;
+function smoke(x, y, z, vx, vy, vz, size, life, color = 0xb59a78) {
+  const s = smokes[smokeCursor = (smokeCursor + 1) % smokes.length];
+  s.sp.position.set(x, y, z);
+  s.vel.set(vx, vy, vz);
+  s.life = s.max = life;
+  s.s0 = size * 0.4; s.s1 = size;
+  s.sp.material.color.setHex(color);
+  s.sp.visible = true;
+}
+function updateSmokes(dt) {
+  for (const s of smokes) {
+    if (s.life <= 0) continue;
+    s.life -= dt;
+    const k = 1 - s.life / s.max;
+    s.vel.multiplyScalar(Math.exp(-dt * 1.6));
+    s.vel.y += 6 * dt;
+    s.sp.position.addScaledVector(s.vel, dt);
+    s.sp.scale.setScalar(lerp(s.s0, s.s1, 1 - Math.pow(1 - k, 2)));
+    s.sp.material.opacity = Math.min(1, k * 8) * Math.pow(1 - k, 0.8);
+    if (s.life <= 0) s.sp.visible = false;
+  }
+}
+// 横倒しになったヒルズの足元から地吹雪
+function landingBlast(pos, dir) {
+  for (let i = 0; i < 80; i++) {
+    const along = rand(-20, HILLS_H);
+    const x = pos.x + dir.x * along, z = pos.z + dir.z * along;
+    const a = rand(0, Math.PI * 2), sp = rand(70, 200);
+    smoke(x, rand(5, 40), z, Math.cos(a) * sp, rand(10, 60), Math.sin(a) * sp, rand(110, 220), rand(2.5, 4.2), Math.random() < 0.5 ? 0xc2a782 : 0xddd2bf);
+  }
+  for (let i = 0; i < 32; i++) { // 地面を這って広がる輪
+    const a = i / 32 * Math.PI * 2;
+    smoke(pos.x + dir.x * HILLS_H * 0.5, 15, pos.z + dir.z * HILLS_H * 0.5, Math.cos(a) * 340, 0, Math.sin(a) * 340, 160, 3.0, 0xe2d8c6);
+  }
+  dirt(pos.x + dir.x * HILLS_H * 0.5, 0, pos.z + dir.z * HILLS_H * 0.5, 160, 1.8);
+}
+
 function updateParticles(dt) {
   for (let k = 0; k < MAX_P; k++) {
     if (pLife[k] <= 0) continue;
@@ -695,14 +845,63 @@ function updateParticles(dt) {
 // ---------------------------------------------------------------------
 // 効果音（WebAudio で合成）
 // ---------------------------------------------------------------------
-let audio = null;
-function sfx(type) {
+let audio = null, master = null, sfxBus = null, bgmBus = null, noiseBuf = null;
+let muted = false;
+try { muted = localStorage.getItem('hills_muted') === '1'; } catch (_) { /* ignore */ }
+function ensureAudio() {
+  if (audio) { if (audio.state === 'suspended') audio.resume(); return audio; }
+  audio = new (window.AudioContext || window.webkitAudioContext)();
+  master = audio.createGain(); master.gain.value = muted ? 0 : 1; master.connect(audio.destination);
+  sfxBus = audio.createGain(); sfxBus.gain.value = 0.9; sfxBus.connect(master);
+  bgmBus = audio.createGain(); bgmBus.gain.value = 0.32; bgmBus.connect(master);
+  noiseBuf = audio.createBuffer(1, audio.sampleRate * 2, audio.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return audio;
+}
+function setMuted(m) {
+  muted = m;
+  try { localStorage.setItem('hills_muted', m ? '1' : '0'); } catch (_) { /* ignore */ }
+  if (master) master.gain.setTargetAtTime(m ? 0 : 1, audio.currentTime, 0.05);
+  document.getElementById('mute').textContent = m ? '🔇' : '🔊';
+}
+function noise(t, dur, freq, gain, type = 'lowpass', dest = sfxBus) {
+  const src = audio.createBufferSource(); src.buffer = noiseBuf;
+  const f = audio.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+  const g = audio.createGain();
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f); f.connect(g); g.connect(dest);
+  src.start(t, Math.random()); src.stop(t + dur + 0.05);
+  return f;
+}
+function sfx(type, opt = {}) {
   try {
-    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    ensureAudio();
     const t = audio.currentTime;
     const o = audio.createOscillator(), g = audio.createGain();
-    o.connect(g); g.connect(audio.destination);
+    o.connect(g); g.connect(sfxBus);
+    if (type === 'thud') { // 着地の地響き
+      const v = opt.volume ?? 1;
+      o.type = 'sine';
+      o.frequency.setValueAtTime(75, t); o.frequency.exponentialRampToValueAtTime(28, t + 0.9);
+      g.gain.setValueAtTime(0.9 * v, t); g.gain.exponentialRampToValueAtTime(0.001, t + 1.1);
+      o.start(t); o.stop(t + 1.2);
+      noise(t, 0.35, 1800, 0.5 * v);                 // ドン
+      const f = noise(t + 0.05, 2.4, 500, 0.35 * v); // ゴゴゴ…（地吹雪）
+      f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(150, t + 2.4);
+      noise(t + 0.15, 1.8, 3000, 0.08 * v, 'highpass'); // 砂ぼこりのザーッ
+      return;
+    }
+    if (type === 'whistle') { // 落ちてくるヒュ〜
+      const T = opt.dur || 2;
+      o.type = 'sine';
+      o.frequency.setValueAtTime(1400, t); o.frequency.exponentialRampToValueAtTime(260, t + T);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + T * 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + T);
+      o.start(t); o.stop(t + T + 0.05);
+      return;
+    }
     if (type === 'pop') {
+      noise(t, 0.25, 1200, 0.25);
       o.type = 'square';
       o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(1100, t + 0.12);
       g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
@@ -724,6 +923,85 @@ function sfx(type) {
       o.start(t); o.stop(t + 0.16);
     }
   } catch (_) { /* 音が出なくてもゲームは続ける */ }
+}
+
+// ---------------------------------------------------------------------
+// BGM：WebAudio で合成するオリジナル曲（ヨナ抜き風の祭り囃子）
+// ---------------------------------------------------------------------
+const NOTE = { D3: 146.83, G3: 196.0, A3: 220.0, B3: 246.94, D4: 293.66, E4: 329.63, G4: 392.0, A4: 440.0, B4: 493.88, D5: 587.33, E5: 659.25, G5: 783.99 };
+// 8分音符 × 8 × 8小節。'.' は前の音をのばす、'-' は休み
+const MELODY = [
+  'D5 . B4 A4 B4 . D5 .', 'E5 D5 B4 . A4 . - -', 'G4 A4 B4 . A4 G4 E4 .', 'D4 . E4 G4 A4 . - -',
+  'D5 . E5 D5 B4 . A4 B4', 'D5 . B4 A4 G4 . - -', 'E4 G4 A4 B4 D5 . B4 A4', 'G4 . A4 . D4 . - -',
+].join(' ').split(' ');
+const BASS = ['D3', 'D3', 'G3', 'D3', 'D3', 'G3', 'A3', 'D3'];
+const bgm = { on: false, step: 0, next: 0, timer: null, tempo: 138 };
+function pluck(t, f, dur, vol) { // 三味線っぽい撥音
+  const o = audio.createOscillator(), o2 = audio.createOscillator(), fl = audio.createBiquadFilter(), g = audio.createGain();
+  o.type = 'sawtooth'; o2.type = 'square';
+  o.frequency.value = f; o2.frequency.value = f * 1.004;
+  fl.type = 'lowpass'; fl.frequency.setValueAtTime(f * 6, t); fl.frequency.exponentialRampToValueAtTime(f * 1.5, t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  o.connect(fl); o2.connect(fl); fl.connect(g); g.connect(bgmBus);
+  o.start(t); o2.start(t); o.stop(t + dur + 0.02); o2.stop(t + dur + 0.02);
+}
+function flute(t, f, dur, vol) { // 篠笛っぽい音
+  const o = audio.createOscillator(), lfo = audio.createOscillator(), lg = audio.createGain(), g = audio.createGain();
+  o.type = 'triangle'; o.frequency.value = f * 2;
+  lfo.frequency.value = 5.5; lg.gain.value = f * 0.012;
+  lfo.connect(lg); lg.connect(o.frequency);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.04); g.gain.setValueAtTime(vol, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(bgmBus);
+  o.start(t); lfo.start(t); o.stop(t + dur + 0.02); lfo.stop(t + dur + 0.02);
+}
+function taiko(t, vol) {
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(55, t + 0.25);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+  o.connect(g); g.connect(bgmBus); o.start(t); o.stop(t + 0.42);
+  noise(t, 0.06, 900, vol * 0.4, 'lowpass', bgmBus);
+}
+function kane(t, vol) { // チャンチキ
+  [1870, 2630].forEach(f => {
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = 'square'; o.frequency.value = f;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.09);
+    o.connect(g); g.connect(bgmBus); o.start(t); o.stop(t + 0.1);
+  });
+}
+function scheduleBgm() {
+  const e = 60 / bgm.tempo / 2; // 8分音符
+  while (bgm.next < audio.currentTime + 0.15) {
+    const t = bgm.next, i = bgm.step % 64, bar = Math.floor(i / 8), b = i % 8;
+    const n = MELODY[i];
+    if (n !== '.' && n !== '-') {
+      let len = 1;
+      while (MELODY[(i + len) % 64] === '.') len++;
+      flute(t, NOTE[n], e * len * 0.95, 0.09);
+      pluck(t, NOTE[n], 0.22, 0.05);
+    }
+    if (b % 2 === 0) pluck(t, NOTE[BASS[bar]] / 2, 0.3, 0.09);
+    if (b === 0 || b === 4) taiko(t, 0.5);
+    if (bar % 2 === 1 && b === 6) { taiko(t, 0.35); taiko(t + e / 2, 0.35); }
+    if (b % 2 === 1) kane(t, 0.025);
+    bgm.next += e;
+    bgm.step++;
+  }
+}
+function startBgm() {
+  try {
+    ensureAudio();
+    if (bgm.on) return;
+    bgm.on = true; bgm.step = 0; bgm.next = audio.currentTime + 0.1;
+    bgmBus.gain.setTargetAtTime(0.32, audio.currentTime, 0.1);
+    bgm.timer = setInterval(scheduleBgm, 40);
+  } catch (_) { /* ignore */ }
+}
+function stopBgm() {
+  if (!bgm.on) return;
+  bgm.on = false;
+  clearInterval(bgm.timer);
+  if (bgmBus) bgmBus.gain.setTargetAtTime(0.0001, audio.currentTime, 0.3);
 }
 
 // ---------------------------------------------------------------------
@@ -812,6 +1090,10 @@ try { best = parseInt(localStorage.getItem('hills_best3d'), 10) || 0; } catch (_
 if (best) ui.best.textContent = `ハイスコア ${best.toLocaleString()} 点`;
 
 const sprouts = [];
+const GRAV = 140;          // 飛んでいくヒルズの重力（ゲーム用に強め）
+const LIE_Y = 58;          // 横倒しになったときの基点の高さ
+const UP = new THREE.Vector3(0, 1, 0);
+const _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion();
 const holes = [];
 const moundGeom = new THREE.CylinderGeometry(70, 95, 10, 18);
 const ringGeom = new THREE.RingGeometry(95, 115, 40);
@@ -894,8 +1176,21 @@ function yank(s) {
   s.state = 'fly';
   s.t = 0;
   s.grabbed = false;
-  s.vel.set(rand(-40, 40), 260 + s.grow * 60, rand(-40, 40));
-  s.spin.set(rand(-1.2, 1.2), rand(-2, 2), rand(-1.2, 1.2));
+  // 放物線で飛んで、横倒しで着地する
+  const yaw = rand(0, Math.PI * 2);
+  const dir = new THREE.Vector3(Math.cos(yaw), 0, Math.sin(yaw));
+  const y0 = s.group.position.y;
+  const vy = Math.sqrt(2 * GRAV * Math.max(0, -y0)) + 150;
+  const hs = rand(45, 75);
+  s.vel.set(dir.x * hs, vy, dir.z * hs);
+  s.flyT = (vy + Math.sqrt(vy * vy + 2 * GRAV * y0)) / GRAV;
+  s.y0 = y0;
+  s.start = s.group.position.clone();
+  s.landDir = dir;
+  s.q0 = s.group.quaternion.clone();
+  s.q1 = new THREE.Quaternion().setFromUnitVectors(UP, dir).multiply(new THREE.Quaternion().setFromAxisAngle(UP, rand(0, Math.PI * 2)));
+  s.tumbleAxis = new THREE.Vector3(-dir.z, 0, dir.x);
+  sfx('whistle', { dur: s.flyT });
   s.spot.used = false;
   scene.remove(s.mound, s.ring);
   const hole = new THREE.Mesh(holeGeom, holeMat.clone());
@@ -961,12 +1256,37 @@ function updateSprouts(dt) {
       s.group.rotation.x = wob + rand(-shake, shake);
       s.group.rotation.z = rand(-shake, shake);
     } else if (s.state === 'fly') {
-      s.vel.y -= 120 * dt;
-      s.group.position.addScaledVector(s.vel, dt);
-      s.group.rotation.x += s.spin.x * dt;
-      s.group.rotation.y += s.spin.y * dt;
-      s.group.rotation.z += s.spin.z * dt;
-      if (s.t > 4) { scene.remove(s.group); sprouts.splice(i, 1); }
+      const t = Math.min(s.t, s.flyT), k = t / s.flyT;
+      s.group.position.set(
+        s.start.x + s.vel.x * t,
+        s.y0 + s.vel.y * t - GRAV * t * t / 2 + LIE_Y * k,
+        s.start.z + s.vel.z * t,
+      );
+      // 1回転しながら横倒しの姿勢へ
+      _qa.slerpQuaternions(s.q0, s.q1, k);
+      _qb.setFromAxisAngle(s.tumbleAxis, Math.PI * 2 * (1 - Math.pow(1 - k, 1.5)));
+      s.group.quaternion.copy(_qb.multiply(_qa));
+      if (s.t >= s.flyT) {
+        s.state = 'landed';
+        s.t = 0;
+        s.group.quaternion.copy(s.q1);
+        s.group.position.y = LIE_Y;
+        landingBlast(s.group.position, s.landDir);
+        const d = camera.position.distanceTo(s.group.position);
+        const near = clamp(1 - d / 5000, 0.15, 1);
+        sfx('thud', { volume: near });
+        cam.shake = Math.max(cam.shake, 22 * near);
+        if (navigator.vibrate) navigator.vibrate([60, 30, 120]);
+      }
+    } else if (s.state === 'landed') {
+      // 着地の反動で少し跳ねてから落ち着き、やがて地面に沈む
+      const bounce = Math.exp(-s.t * 5) * Math.abs(Math.sin(s.t * 14)) * 10;
+      s.group.position.y = LIE_Y + bounce - Math.max(0, s.t - 6) * 30;
+      if (s.t < 1.5 && Math.random() < dt * 20) {
+        const along = rand(0, HILLS_H);
+        smoke(s.group.position.x + s.landDir.x * along, 10, s.group.position.z + s.landDir.z * along, rand(-30, 30), rand(5, 20), rand(-30, 30), rand(50, 90), 2.5);
+      }
+      if (s.t > 9) { scene.remove(s.group); sprouts.splice(i, 1); }
     }
   }
   for (let i = holes.length - 1; i >= 0; i--) {
@@ -1009,6 +1329,7 @@ function rankOf(score) {
 function endGame(reason) {
   if (state !== 'play') return;
   state = 'over';
+  stopBgm();
   if (pull.sprout) { pull.sprout.grabbed = false; pull.sprout = null; }
   const isBest = game.score > best;
   if (isBest) { best = game.score; try { localStorage.setItem('hills_best3d', String(best)); } catch (_) { /* ignore */ } }
@@ -1032,8 +1353,22 @@ function endGame(reason) {
   }, 900);
 }
 
-document.getElementById('start').addEventListener('click', () => { sfx('sprout'); newGame(); });
-document.getElementById('retry').addEventListener('click', () => { sfx('sprout'); newGame(); });
+const startBtn = document.getElementById('start');
+startBtn.disabled = true;
+startBtn.textContent = '街を読み込み中… 0%';
+loadPlateau(k => { startBtn.textContent = `街を読み込み中… ${Math.round(k * 100)}%`; })
+  .then(info => {
+    startBtn.disabled = false;
+    startBtn.textContent = 'はじめる';
+    window.__hills.plateau = info;
+  })
+  .catch(err => {
+    console.error(err);
+    startBtn.disabled = false;
+    startBtn.textContent = 'はじめる（建物なし）';
+  });
+startBtn.addEventListener('click', () => { sfx('sprout'); startBgm(); newGame(); });
+document.getElementById('retry').addEventListener('click', () => { sfx('sprout'); startBgm(); newGame(); });
 
 // ---------------------------------------------------------------------
 // 入力：ヒルズ上を上スワイプ＝引っこ抜く／それ以外のドラッグ＝移動
@@ -1157,10 +1492,8 @@ function updateKeys(dt) {
   if (keys.has('-')) cam.dist *= 1 + dt;
   if (keys.has('=') || keys.has('+')) cam.dist /= 1 + dt;
 }
-document.getElementById('rot-l').addEventListener('click', () => { cam.heading -= Math.PI / 4; });
-document.getElementById('rot-r').addEventListener('click', () => { cam.heading += Math.PI / 4; });
-document.getElementById('zoom-out').addEventListener('click', () => { cam.dist *= 1.6; });
-document.getElementById('zoom-in').addEventListener('click', () => { cam.dist /= 1.6; });
+document.getElementById('mute').addEventListener('click', () => { ensureAudio(); setMuted(!muted); });
+setMuted(muted);
 
 // ---------------------------------------------------------------------
 // 画面外のヒルズを示す矢印・ランドマーク名・レーダー
@@ -1200,6 +1533,8 @@ function updateArrows() {
         const vx = Math.sin(ang), vy = -Math.cos(ang);
         const k = Math.min((W / 2 - 34) / Math.abs(vx || 1e-6), (H / 2 - 70) / Math.abs(vy || 1e-6));
         ax = cx + vx * k; ay = cy + vy * k;
+        const rr = ui.radar.getBoundingClientRect();
+        if (ax < rr.right + 30 && ay > rr.top - 30) ay = rr.top - 34;
       }
       a.style.left = ax + 'px';
       a.style.top = ay + 'px';
@@ -1235,7 +1570,7 @@ function updateLabels() {
 const radarCtx = ui.radar.getContext('2d');
 function drawRadar() {
   if (ui.radar.hidden) return;
-  const S = ui.radar.width, c = S / 2, k = (S / 2 - 6) / STAGE_R;
+  const S = ui.radar.width, c = S / 2, k = (S / 2 - 6) / STAGE_R, u = S / 140;
   const g = radarCtx;
   g.clearRect(0, 0, S, S);
   g.save();
@@ -1255,25 +1590,25 @@ function drawRadar() {
   g.strokeStyle = 'rgba(255,255,255,.35)';
   g.beginPath(); g.arc(0, 0, S / 2 - 4, 0, 7); g.stroke();
   // 本家ヒルズ・東京タワー
-  g.fillStyle = '#ffcf33'; g.fillRect(-2.5, -2.5, 5, 5);
+  g.fillStyle = '#ffcf33'; g.fillRect(-3 * u, -3 * u, 6 * u, 6 * u);
   const tt = geo(35.65858, 139.74543);
-  g.fillStyle = '#ff5a1f'; g.fillRect(tt.x * k - 2, tt.z * k - 2, 4, 4);
+  g.fillStyle = '#ff5a1f'; g.fillRect(tt.x * k - 2 * u, tt.z * k - 2 * u, 4 * u, 4 * u);
   // ヒルズ
   sprouts.forEach(s => {
-    if (s.state === 'fly') return;
+    if (s.state === 'fly' || s.state === 'landed') return;
     g.fillStyle = s.state === 'rooted' ? '#777' : s.state === 'ripe' ? '#ff4040' : s.grow < 0.35 ? '#7dff9a' : '#fff';
-    g.beginPath(); g.arc(s.spot.x * k, s.spot.z * k, s.state === 'rooted' ? 2.5 : 3.5, 0, 7); g.fill();
+    g.beginPath(); g.arc(s.spot.x * k, s.spot.z * k, (s.state === 'rooted' ? 2.5 : 3.5) * u, 0, 7); g.fill();
   });
   // 視点
-  g.strokeStyle = '#fff'; g.lineWidth = 1.5;
+  g.strokeStyle = '#fff'; g.lineWidth = 1.5 * u;
   const tx = cam.target.x * k, tz = cam.target.z * k;
   const fx = Math.sin(cam.heading), fz = -Math.cos(cam.heading);
-  g.beginPath(); g.arc(tx, tz, Math.max(4, cam.dist * 0.4 * k), 0, 7); g.stroke();
-  g.beginPath(); g.moveTo(tx, tz); g.lineTo(tx + fx * 12, tz + fz * 12); g.stroke();
+  g.beginPath(); g.arc(tx, tz, Math.max(4 * u, cam.dist * 0.4 * k), 0, 7); g.stroke();
+  g.beginPath(); g.moveTo(tx, tz); g.lineTo(tx + fx * 12 * u, tz + fz * 12 * u); g.stroke();
   g.restore();
   // 方位
-  g.fillStyle = '#fff'; g.font = 'bold 10px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText('N', c + Math.sin(-cam.heading) * (S / 2 - 10), c - Math.cos(-cam.heading) * (S / 2 - 10));
+  g.fillStyle = '#fff'; g.font = `bold ${10 * u}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('N', c + Math.sin(-cam.heading) * (S / 2 - 10 * u), c - Math.cos(-cam.heading) * (S / 2 - 10 * u));
 }
 ui.radar.addEventListener('click', e => {
   const rect = ui.radar.getBoundingClientRect();
@@ -1295,6 +1630,8 @@ function loop(now) {
   if (state === 'play') updateGame(dt);
   updateSprouts(dt);
   updateParticles(dt);
+  updateSmokes(dt);
+  updateSmallChunks();
   updateKeys(dt);
   updateCamera(dt);
   renderer.render(scene, camera);
