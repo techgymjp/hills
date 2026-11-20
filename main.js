@@ -1133,7 +1133,8 @@ try { best = parseInt(localStorage.getItem('hills_best3d'), 10) || 0; } catch (_
 if (best) ui.best.textContent = `ハイスコア ${best.toLocaleString()} 点`;
 
 const sprouts = [];
-const GRAV = 140;          // 飛んでいくヒルズの重力（ゲーム用に強め）
+const GRAV = 300;          // 飛んでいくヒルズの重力（ゲーム用に強め）
+const FLY_T = 1.3;         // 引っこ抜いてから着地するまでの秒数
 const LIE_Y = 58;          // 横倒しになったときの基点の高さ
 const UP = new THREE.Vector3(0, 1, 0);
 const _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion();
@@ -1228,11 +1229,13 @@ function yank(s) {
   // 放物線で飛んで、横倒しで着地する
   const yaw = rand(0, Math.PI * 2);
   const dir = new THREE.Vector3(Math.cos(yaw), 0, Math.sin(yaw));
-  const y0 = s.group.position.y;
-  const vy = Math.sqrt(2 * GRAV * Math.max(0, -y0)) + 150;
-  const hs = rand(45, 75);
+  // 地面の下に埋まっていた分は一気に引き上げ、どのヒルズも FLY_T 秒で着地させる
+  const y0 = Math.max(s.group.position.y, -40);
+  s.group.position.y = y0;
+  const vy = (GRAV * FLY_T * FLY_T / 2 - y0) / FLY_T;
+  const hs = rand(50, 80);
   s.vel.set(dir.x * hs, vy, dir.z * hs);
-  s.flyT = (vy + Math.sqrt(vy * vy + 2 * GRAV * y0)) / GRAV;
+  s.flyT = FLY_T;
   s.y0 = y0;
   s.start = s.group.position.clone();
   s.landDir = dir;
@@ -1298,9 +1301,11 @@ function updateSprouts(dt) {
           if (game.rooted >= ROOT_LIMIT) endGame('港区がヒルズに占領された！');
         }
       }
-      if (!s.grabbed) s.loosen = Math.max(0, s.loosen - requiredPull(s) * 0.12 * dt);
+      // スワイプの合間（1.5秒以内）は上がった分を保つ
+      if (!s.grabbed && performance.now() - (s.lastPull || 0) > 1500) s.loosen = Math.max(0, s.loosen - requiredPull(s) * 0.12 * dt);
       const looseK = Math.min(1, s.loosen / requiredPull(s));
-      s.lift = lerp(s.lift, looseK * 40, Math.min(1, dt * 12));
+      // 根付いたヒルズはスワイプのたびに大きく持ち上がり、根っこが見えてくる
+      s.lift = lerp(s.lift, looseK * (s.state === 'rooted' ? 150 : 40), Math.min(1, dt * 10));
       const wob = s.state === 'ripe' ? Math.sin(s.t * 18) * 0.012 : 0;
       const shake = s.grabbed ? 0.02 * looseK : 0;
       s.group.position.y = -HILLS_H * (1 - s.grow) + s.lift;
@@ -1515,6 +1520,7 @@ el.addEventListener('pointermove', e => {
     const dy = py - e.clientY;
     if (dy > 0) {
       s.loosen += dy;
+      s.lastPull = performance.now();
       if (Math.random() < 0.3) sfx('pull');
       if (Math.random() < 0.4) dirt(s.spot.x, 0, s.spot.z, 2, 0.6);
     }
@@ -1536,7 +1542,22 @@ function panBy(x0, y0, x1, y1) {
 
 function endPointer(e) {
   pointers.delete(e.pointerId);
-  if (pull.id === e.pointerId && pull.sprout) { pull.sprout.grabbed = false; pull.sprout = null; }
+  if (pull.id === e.pointerId && pull.sprout) {
+    const s = pull.sprout;
+    // 根付いたヒルズ：1回のスワイプごとに「グラッ」と手応えを返す
+    if (s.state === 'rooted' && s.loosen > 0 && state === 'play') {
+      const req = requiredPull(s);
+      const left = Math.max(1, Math.ceil((req - s.loosen) / (window.innerHeight * 0.4)));
+      cam.shake = Math.max(cam.shake, 7);
+      dirt(s.spot.x, 0, s.spot.z, 40, 1.1);
+      for (let i = 0; i < 6; i++) { const a = rand(0, Math.PI * 2); smoke(s.spot.x + Math.cos(a) * 60, 10, s.spot.z + Math.sin(a) * 60, Math.cos(a) * 60, 15, Math.sin(a) * 60, 70, 1.6); }
+      sfx('root');
+      if (navigator.vibrate) navigator.vibrate(30);
+      const sp = project(s.spot.x, s.group.position.y + HILLS_H, s.spot.z);
+      popup(`グラッ！<small>あと${left}回</small>`, sp.x, sp.y, '#ffb36b', 26);
+    }
+    s.grabbed = false; pull.sprout = null;
+  }
   if (pointers.size < 2) multi = null;
 }
 el.addEventListener('pointerup', endPointer);
