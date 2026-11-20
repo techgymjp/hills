@@ -1473,10 +1473,11 @@ startBtn.addEventListener('click', () => {
 document.getElementById('retry').addEventListener('click', () => { sfx('sprout'); startBgm(); newGame(); });
 
 // 結果のシェア：使える端末では OS の共有メニュー（画像付き）、ほかは X の投稿画面
+const SHARE_URL = 'https://techgym.jp/column/claude-code-game-hills/';
 let shareData = null, shareImage = null;
 document.getElementById('share').addEventListener('click', async () => {
   if (!shareData) return;
-  const url = location.origin + location.pathname;
+  const url = SHARE_URL;
   const text = t('shareText', { score: shareData.score.toLocaleString(), rank: shareData.rank, n: shareData.pulled });
   if (navigator.share) {
     const data = { title: t('pageTitle'), text, url };
@@ -1680,6 +1681,7 @@ function updatePullUi() {
 
 function updateArrows() {
   const live = new Set();
+  const placed = [];
   const W = window.innerWidth, H = window.innerHeight;
   if (state === 'play') {
     sprouts.forEach(s => {
@@ -1715,8 +1717,7 @@ function updateArrows() {
         const rr = ui.radar.getBoundingClientRect();
         if (ax < rr.right + 30 && ay > rr.top - 30) ay = rr.top - 34;
       }
-      a.style.left = ax + 'px';
-      a.style.top = ay + 'px';
+      placed.push({ a, x: ax, y: ay });
       a.querySelector('i').style.transform = `rotate(${ang}rad)`;
       const dist = Math.hypot(dx, dz);
       a.querySelector('span').textContent = dist >= 1000 ? (dist / 1000).toFixed(1) + 'km' : Math.round(dist) + 'm';
@@ -1725,6 +1726,33 @@ function updateArrows() {
       a.classList.toggle('rooted', s.state === 'rooted');
     });
   }
+  // 近い矢印どうしが重ならないように、画面の端に沿ってずらす。
+  // レーダー（左下）と音のボタン（右下）の上には置かない
+  const GAP = 58;
+  const rr = ui.radar.getBoundingClientRect();
+  const mr = document.getElementById('mute').getBoundingClientRect();
+  const maxY = p => (p.x < rr.right + 30 ? rr.top - 34 : p.x > mr.left - 30 ? mr.top - 34 : H - 34);
+  const fit = p => { p.x = clamp(p.x, 34, W - 34); p.y = clamp(p.y, 90, maxY(p)); };
+  placed.forEach(fit);
+  placed.sort((p, q) => p.y - q.y || p.x - q.x);
+  for (let pass = 0; pass < 4; pass++) {
+    for (let i = 0; i < placed.length; i++) {
+      for (let j = 0; j < placed.length; j++) {
+        if (i === j) continue;
+        const p = placed[i], q = placed[j];
+        if (Math.hypot(p.x - q.x, p.y - q.y) >= GAP) continue;
+        const sideEdge = p.x < 70 || p.x > W - 70;
+        if (sideEdge) {
+          const down = q.y + GAP;
+          p.y = (p.y >= q.y && down <= maxY(p)) ? down : q.y - GAP;
+        } else {
+          p.x = q.x + (p.x >= q.x ? GAP : -GAP);
+        }
+        fit(p);
+      }
+    }
+  }
+  placed.forEach(p => { p.a.style.left = p.x + 'px'; p.a.style.top = p.y + 'px'; });
   arrowEls.forEach((a, s) => { if (!live.has(s)) { a.remove(); arrowEls.delete(s); } });
 }
 
