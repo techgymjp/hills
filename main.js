@@ -1235,7 +1235,7 @@ function newGame() {
   holes.length = 0;
   game = {
     time: 0, score: 0, rooted: 0, pulled: 0, trains: 0, continues: 0, combo: 0, comboT: 0, nextSpawn: 0.5,
-    best: { name: '', pts: 0 }, counts: { gold: 0, good: 0, ok: 0, old: 0 },
+    best: { name: '', pts: 0 }, counts: { gold: 0, good: 0, ok: 0, old: 0, ripe: 0, rooted: 0 },
   };
   state = 'play';
   paused = false;
@@ -1290,8 +1290,8 @@ function requiredPull(s) {
 }
 
 function grade(s) {
-  if (s.state === 'rooted') return { pts: 30, name: t('gRooted'), key: 'old', color: '#ffb36b' };
-  if (s.state === 'ripe') return { pts: 20, name: t('gRipe'), key: 'old', color: '#ff8c5a' };
+  if (s.state === 'rooted') return { pts: 30, name: t('gRooted'), key: 'rooted', color: '#ffb36b' };
+  if (s.state === 'ripe') return { pts: 20, name: t('gRipe'), key: 'ripe', color: '#ff8c5a' };
   if (s.grow < 0.12) return { pts: 500, name: t('gGold'), key: 'gold', color: '#ffe14d' };
   if (s.grow < 0.35) return { pts: 250, name: t('gGood'), key: 'good', color: '#7dff9a' };
   if (s.grow < 0.7) return { pts: 100, name: t('gOk'), key: 'ok', color: '#ffffff' };
@@ -1533,7 +1533,8 @@ function finishGame(reason) {
     <dt>${t('stPulled')}</dt><dd>${t('count', { n: game.pulled })}</dd>
     <dt>${t('stGold')}</dt><dd>${t('count', { n: c.gold })}</dd>
     <dt>${t('stGood')}</dt><dd>${t('count', { n: c.good })}</dd>
-    <dt>${t('stOkOld')}</dt><dd>${t('count', { n: c.ok + c.old })}</dd>
+    <dt>${t('stOkOld')}</dt><dd>${t('count', { n: c.ok + c.old + c.ripe })}</dd>
+    <dt>${t('stRootedPulled')}</dt><dd>${t('count', { n: c.rooted })}</dd>
     <dt>${t('stTrains')}</dt><dd>${t('count', { n: game.trains })}</dd>
     <dt>${t('stRooted')}</dt><dd>${t('count', { n: game.rooted })}</dd>${game.continues ? `
     <dt>${t('stContinues')}</dt><dd>${t('times', { n: game.continues })}</dd>` : ''}`;
