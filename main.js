@@ -1551,15 +1551,11 @@ function endPointer(e) {
     const s = pull.sprout;
     // 根付いたヒルズ：1回のスワイプごとに「グラッ」と手応えを返す
     if (s.state === 'rooted' && s.loosen > 0 && state === 'play') {
-      const req = requiredPull(s);
-      const left = Math.max(1, Math.ceil((req - s.loosen) / (window.innerHeight * 0.4)));
       cam.shake = Math.max(cam.shake, 7);
       dirt(s.spot.x, 0, s.spot.z, 40, 1.1);
       for (let i = 0; i < 6; i++) { const a = rand(0, Math.PI * 2); smoke(s.spot.x + Math.cos(a) * 60, 10, s.spot.z + Math.sin(a) * 60, Math.cos(a) * 60, 15, Math.sin(a) * 60, 70, 1.6); }
       sfx('root');
       if (navigator.vibrate) navigator.vibrate(30);
-      const sp = project(s.spot.x, s.group.position.y + HILLS_H, s.spot.z);
-      popup(`グラッ！<small>あと${left}回</small>`, sp.x, sp.y, '#ffb36b', 26);
     }
     s.grabbed = false; pull.sprout = null;
   }
