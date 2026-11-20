@@ -4,7 +4,6 @@
     <string name="title_activity_main">ヒルズ引っこ抜け</string>
     <string name="package_name">jp.techgym.hills</string>
     <string name="custom_url_scheme">jp.techgym.hills</string>
-    <!-- AdMob のアプリ ID。本番の ID が届くまでは Google 公式のテスト用アプリ ID を入れておく
-         （アプリ ID がないと起動時に落ちるため） -->
-    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <!-- AdMob のアプリ ID（Android アプリ「六本木ヒルズを引っこ抜け」） -->
+    <string name="admob_app_id">ca-app-pub-6411535997477460~1395555606</string>
 </resources>
