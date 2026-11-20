@@ -296,7 +296,83 @@ const hillsMats = {
   soil: new THREE.MeshStandardMaterial({ color: 0x6b4a2b, roughness: 1 }),
 };
 hillsWallTex.repeat.set(5, 22);
-function makeHills(sprout) {
+// ---------------------------------------------------------------------
+// 地下鉄：大江戸線・日比谷線の近くに生えたヒルズは、根っこに電車が絡まっている
+//   線路は実際の駅の位置をつないだ折れ線（おおよそ）
+// ---------------------------------------------------------------------
+const SUBWAY_LINES = {
+  oedo: {
+    color: 0xce045b,
+    paths: [
+      [[35.6907, 139.6927], [35.6881, 139.6995], [35.6831, 139.7020], [35.6800, 139.7148], [35.6727, 139.7240],
+        [35.6634, 139.7317], [35.6556, 139.7369], [35.6550, 139.7438], [35.6567, 139.7547], [35.6647, 139.7608],
+        [35.6650, 139.7700], [35.6588, 139.7766], [35.6650, 139.7840], [35.6720, 139.7960]],
+      [[35.6907, 139.6927], [35.6930, 139.6990], [35.6977, 139.7075], [35.6990, 139.7180], [35.6990, 139.7245],
+        [35.7020, 139.7350], [35.7020, 139.7450], [35.7090, 139.7530], [35.7070, 139.7600]],
+    ],
+  },
+  hibiya: {
+    color: 0x9c9c94,
+    paths: [
+      [[35.6440, 139.6990], [35.6467, 139.7100], [35.6503, 139.7222], [35.6627, 139.7310], [35.6630, 139.7450],
+        [35.6685, 139.7495], [35.6737, 139.7510], [35.6750, 139.7600], [35.6717, 139.7650], [35.6695, 139.7670],
+        [35.6680, 139.7720], [35.6750, 139.7780], [35.6800, 139.7800], [35.6860, 139.7820], [35.6910, 139.7780],
+        [35.6980, 139.7740], [35.7070, 139.7770]],
+    ],
+  },
+};
+Object.values(SUBWAY_LINES).forEach(l => { l.paths = l.paths.map(path => path.map(([a, b]) => geo(a, b))); });
+const SUBWAY_NEAR = 300; // この距離（m）以内に生えたヒルズには電車が絡まる
+function subwayAt(p) {
+  const near = Object.keys(SUBWAY_LINES).filter(k => SUBWAY_LINES[k].paths.some(path => distToPolyline(p, path) < SUBWAY_NEAR));
+  return near.length ? near[Math.random() * near.length | 0] : null;
+}
+const trainMats = {
+  body: new THREE.MeshStandardMaterial({ color: 0xd9dde2, roughness: 0.35, metalness: 0.6 }),
+  window: new THREE.MeshStandardMaterial({ color: 0x1d2633, roughness: 0.2, metalness: 0.3 }),
+  dark: new THREE.MeshStandardMaterial({ color: 0x2a2f38, roughness: 0.8 }),
+};
+// 2両編成。見やすいように実物の約3倍の大きさにしている
+function makeTrain(line) {
+  const band = new THREE.MeshStandardMaterial({ color: SUBWAY_LINES[line].color, roughness: 0.4, metalness: 0.2 });
+  const train = new THREE.Group();
+  const L = 48, W = 8.5, H = 10.5;
+  for (let i = 0; i < 2; i++) {
+    const car = new THREE.Group();
+    car.add(new THREE.Mesh(new THREE.BoxGeometry(L, H, W), trainMats.body));
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(L + 0.3, 2.2, W + 0.3), band);
+    stripe.position.y = -1.3;
+    const win = new THREE.Mesh(new THREE.BoxGeometry(L - 6, 3.2, W + 0.2), trainMats.window);
+    win.position.y = 2.3;
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(L - 2, 0.8, W - 1), trainMats.dark);
+    roof.position.y = H / 2 + 0.4;
+    [-1, 1].forEach(sx => {
+      const front = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3, W - 1.6), trainMats.window);
+      front.position.set(sx * (L / 2 + 0.05), 1.4, 0);
+      car.add(front);
+    });
+    car.add(stripe, win, roof);
+    // 2両目は連結部で折れ曲がってぶら下がる
+    car.position.set(i * (L + 1.5) * Math.cos(i * 0.5), -i * (L + 1.5) * Math.sin(i * 0.5), 0);
+    car.rotation.z = -i * 0.5;
+    train.add(car);
+  }
+  // 根っこの外側の先で斜めに引っかかっている
+  const ang = rand(0, Math.PI * 2), rad = rand(70, 90);
+  train.position.set(Math.cos(ang) * rad, rand(-120, -100), Math.sin(ang) * rad);
+  train.rotation.set(rand(-0.3, 0.3), rand(0, Math.PI * 2), rand(-0.6, -0.3));
+  // 電車を引っかけている根っこ
+  const hook = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(train.position.x * 0.3, 0, train.position.z * 0.3),
+    new THREE.Vector3(train.position.x * 0.8, train.position.y * 0.5, train.position.z * 0.8 + 10),
+    train.position.clone().add(new THREE.Vector3(0, 6, 0)),
+  ]);
+  const g = new THREE.Group();
+  g.add(train, new THREE.Mesh(new THREE.TubeGeometry(hook, 10, 5, 5), hillsMats.root));
+  return g;
+}
+
+function makeHills(sprout, line = null) {
   const g = new THREE.Group();
   // 基壇
   const podium = new THREE.Mesh(new THREE.BoxGeometry(150, 32, 120), hillsMats.podium);
@@ -346,6 +422,7 @@ function makeHills(sprout) {
     const clod = new THREE.Mesh(new THREE.SphereGeometry(60, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), hillsMats.soil);
     clod.scale.y = 0.5;
     g.add(clod);
+    if (line) g.add(makeTrain(line));
   }
   return shadowAll(g);
 }
@@ -1134,6 +1211,7 @@ try { best = parseInt(localStorage.getItem('hills_best3d'), 10) || 0; } catch (_
 const showBest = () => { ui.best.textContent = best ? t('best', { n: best.toLocaleString() }) : ''; };
 
 const sprouts = [];
+const TRAIN_BONUS = 100;    // 地下鉄ごと引っこ抜いたときのボーナス
 const GRAV = 300;          // 飛んでいくヒルズの重力（ゲーム用に強め）
 const FLY_T = 1.3;         // 引っこ抜いてから着地するまでの秒数
 const LIE_Y = 58;          // 横倒しになったときの基点の高さ
@@ -1151,7 +1229,7 @@ function newGame() {
   holes.forEach(h => scene.remove(h.mesh));
   holes.length = 0;
   game = {
-    time: 0, score: 0, rooted: 0, pulled: 0, combo: 0, comboT: 0, nextSpawn: 0.5,
+    time: 0, score: 0, rooted: 0, pulled: 0, trains: 0, combo: 0, comboT: 0, nextSpawn: 0.5,
     best: { name: '', pts: 0 }, counts: { gold: 0, good: 0, ok: 0, old: 0 },
   };
   state = 'play';
@@ -1173,7 +1251,8 @@ function spawn(near) {
   }
   const spot = pool[Math.random() * pool.length | 0];
   spot.used = true;
-  const group = makeHills(true);
+  const line = subwayAt(spot);
+  const group = makeHills(true, line);
   group.position.set(spot.x, -HILLS_H - 160, spot.z);
   group.rotation.y = rand(0, Math.PI * 2);
   const mound = new THREE.Mesh(moundGeom, hillsMats.soil);
@@ -1186,7 +1265,7 @@ function spawn(near) {
   scene.add(group, mound, ring);
   const d = game ? game.time / GAME_TIME : 0;
   sprouts.push({
-    spot, group, mound, ring,
+    spot, group, mound, ring, line,
     state: 'warn', t: 0, grow: 0,
     growTime: (20 - d * 9) * rand(0.85, 1.2),
     ripeTime: 5,
@@ -1217,7 +1296,9 @@ function yank(s) {
   game.comboT = 3;
   const mult = 1 + Math.min(game.combo - 1, 10) * 0.1;
   const pts = Math.round(g.pts * mult);
-  game.score += pts;
+  const trainBonus = s.line ? TRAIN_BONUS : 0;
+  game.score += pts + trainBonus;
+  if (s.line) game.trains++;
   game.pulled++;
   game.counts[g.key]++;
   if (pts > game.best.pts) game.best = { name: g.name, pts };
@@ -1258,6 +1339,7 @@ function yank(s) {
 
   const sp = project(s.spot.x, s.group.position.y + HILLS_H, s.spot.z);
   popup(`${g.name}<small>+${pts}${game.combo > 1 ? t('comboSuffix', { n: game.combo }) : ''}</small>`, sp.x, sp.y, g.color, g.key === 'gold' ? 34 : 28);
+  if (s.line) setTimeout(() => popup(`${t(s.line === 'oedo' ? 'trainOedo' : 'trainHibiya')}<small>+${TRAIN_BONUS}</small>`, sp.x, sp.y + 70, s.line === 'oedo' ? '#ff5aa0' : '#e6e6e0', 24), 350);
 }
 
 function popup(html, x, y, color = '#fff', size = 28) {
@@ -1425,6 +1507,7 @@ function endGame(reason) {
     <dt>${t('stGold')}</dt><dd>${t('count', { n: c.gold })}</dd>
     <dt>${t('stGood')}</dt><dd>${t('count', { n: c.good })}</dd>
     <dt>${t('stOkOld')}</dt><dd>${t('count', { n: c.ok + c.old })}</dd>
+    <dt>${t('stTrains')}</dt><dd>${t('count', { n: game.trains })}</dd>
     <dt>${t('stRooted')}</dt><dd>${t('count', { n: game.rooted })}</dd>`;
   setTimeout(() => {
     ui.overlay.hidden = false;
@@ -1852,7 +1935,7 @@ function loop(now) {
 requestAnimationFrame(loop);
 
 // デバッグ・テスト用
-window.__hills = { camera, renderer, scene, get state() { return state; }, get game() { return game; }, sprouts, cam, newGame, yank, project, flyTo };
+window.__hills = { spotStats: () => ({ spots: SPOTS.length, near: SPOTS.filter(sp => subwayAt(sp)).length }), camera, renderer, scene, get state() { return state; }, get game() { return game; }, sprouts, cam, newGame, yank, project, flyTo };
 
 // 言語の切り替え（タイトル画面のボタン）
 document.getElementById('lang').addEventListener('click', () => setLang(lang === 'ja' ? 'en' : 'ja'));

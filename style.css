@@ -73,3 +73,4 @@ button.lang:active{transform:scale(.96);box-shadow:none}
 html[lang="en"] h1 span{font-size:36px}
 html[lang="en"] .pill .label{font-size:9px;letter-spacing:.05em}
 .nw{white-space:nowrap;display:inline-block}
+.tip{font-size:13px;line-height:1.6;margin:10px 0 0;opacity:.9}
