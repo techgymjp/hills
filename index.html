@@ -10,74 +10,76 @@
 <body>
 <div id="app">
   <div id="hud" hidden>
-    <div class="pill"><span class="label">スコア</span><span id="score">0</span></div>
-    <div class="pill"><span class="label">のこり</span><span id="time">60</span></div>
-    <div class="pill"><span class="label">定着</span><span id="rooted">0/5</span></div>
+    <div class="pill"><span class="label" data-i18n="hudScore">スコア</span><span id="score">0</span></div>
+    <div class="pill"><span class="label" data-i18n="hudTime">のこり</span><span id="time">60</span></div>
+    <div class="pill"><span class="label" data-i18n="hudRooted">定着</span><span id="rooted">0/5</span></div>
   </div>
   <div id="combo" hidden></div>
   <div id="labels"></div>
   <div id="arrows"></div>
   <canvas id="radar" width="400" height="400" hidden></canvas>
-  <button id="mute" aria-label="音のオン・オフ">🔊</button>
+  <button id="mute" data-i18n-aria="muteLabel" aria-label="音のオン・オフ">🔊</button>
   <div id="popups"></div>
   <div id="pull-gauge" hidden><i></i></div>
-  <div id="pull-hint" hidden><b>↑</b>上にスワイプ</div>
+  <div id="pull-hint" hidden data-i18n="pullHint"><b>↑</b>上にスワイプ</div>
   <div id="overlay">
     <div class="panel" id="title-panel">
-      <p class="kicker">港区 筍狩り</p>
-      <h1>六本木ヒルズを<br><span>引っこ抜け</span></h1>
-      <p class="lead">港区のあちこちから生えてくる<br>六本木ヒルズを、上スワイプで引っこ抜け！</p>
-      <p class="note">舞台：六本木ヒルズから半径5km。建物・道路：国土交通省 Project PLATEAU 3D都市モデルを加工して作成</p>
+      <p class="kicker" data-i18n="kicker">港区 筍狩り</p>
+      <h1 data-i18n="titleH1">六本木ヒルズを<br><span>引っこ抜け</span></h1>
+      <p class="lead" data-i18n="lead">港区のあちこちから生えてくる<br>六本木ヒルズを、上スワイプで引っこ抜け！</p>
+      <p class="note" data-i18n="credit">舞台：六本木ヒルズから半径5km。建物・道路：国土交通省 Project PLATEAU 3D都市モデルを加工して作成</p>
       <p class="best" id="best"></p>
       <button id="start">はじめる</button>
-      <button id="howto-open" class="sub">遊び方</button>
+      <button id="howto-open" class="sub" data-i18n="howtoOpen">遊び方</button>
+      <button id="lang" class="lang" data-i18n="langButton">English</button>
     </div>
     <div class="panel howto" id="howto-panel" hidden>
-      <p class="kicker">遊び方</p>
-      <h2>ルール</h2>
+      <p class="kicker" data-i18n="howtoKicker">遊び方</p>
+      <h2 data-i18n="hRules">ルール</h2>
       <ul>
-        <li>港区のあちこちから六本木ヒルズが生えてくる。<b>上スワイプ</b>で引っこ抜こう</li>
-        <li><b>早く見つけるほど楽に抜けて高得点</b>。育つほど長いスワイプが必要になる</li>
-        <li>育ちきって放っておくと<b>根付く</b>。根付いたヒルズも何回かスワイプすれば抜ける</li>
-        <li>根付いたヒルズが同時に<b>5本</b>になると港区陥落。制限時間は90秒</li>
-        <li>続けて抜くとコンボで点数アップ</li>
+        <li data-i18n="rule1"></li>
+        <li data-i18n="rule2"></li>
+        <li data-i18n="rule3"></li>
+        <li data-i18n="rule4"></li>
+        <li data-i18n="rule5"></li>
       </ul>
-      <h2>点数</h2>
+      <h2 data-i18n="hPoints">点数</h2>
       <dl class="table">
-        <dt>極上の朝掘り（顔を出したばかり）</dt><dd>500</dd>
-        <dt>上物</dt><dd>250</dd>
-        <dt>まあまあ</dt><dd>100</dd>
-        <dt>育ちすぎ</dt><dd>40</dd>
-        <dt>根付いたヒルズ</dt><dd>30</dd>
-        <dt>ギリギリセーフ（根付く直前）</dt><dd>20</dd>
+        <dt data-i18n="ptGold"></dt><dd>500</dd>
+        <dt data-i18n="ptGood"></dt><dd>250</dd>
+        <dt data-i18n="ptOk"></dt><dd>100</dd>
+        <dt data-i18n="ptOld"></dt><dd>40</dd>
+        <dt data-i18n="ptRooted"></dt><dd>30</dd>
+        <dt data-i18n="ptRipe"></dt><dd>20</dd>
       </dl>
-      <h2>操作</h2>
+      <h2 data-i18n="hControls">操作</h2>
       <dl class="table">
-        <dt>引っこ抜く</dt><dd>1本指で上スワイプ</dd>
-        <dt>向きを回転</dt><dd>1本指で左右スワイプ</dd>
-        <dt>前進・後退</dt><dd>2本指で下・上にスワイプ</dd>
-        <dt>拡大・縮小</dt><dd>2本指でピンチ</dd>
-        <dt>遠くへ移動</dt><dd>画面端の矢印・レーダーをタップ</dd>
+        <dt data-i18n="cPull"></dt><dd data-i18n="cPullHow"></dd>
+        <dt data-i18n="cTurn"></dt><dd data-i18n="cTurnHow"></dd>
+        <dt data-i18n="cMove"></dt><dd data-i18n="cMoveHow"></dd>
+        <dt data-i18n="cZoom"></dt><dd data-i18n="cZoomHow"></dd>
+        <dt data-i18n="cFar"></dt><dd data-i18n="cFarHow"></dd>
       </dl>
-      <h2>レーダー</h2>
+      <h2 data-i18n="hRadar">レーダー</h2>
       <ul class="legend">
-        <li><i style="background:#7dff9a"></i>生え始めのヒルズ（今が狙い目）</li>
-        <li><i style="background:#fff"></i>育ってきたヒルズ</li>
-        <li><i style="background:#ff4040"></i>もうすぐ根付くヒルズ</li>
-        <li><i style="background:#777"></i>根付いたヒルズ</li>
-        <li><i class="sq" style="background:#ffcf33"></i>本家・六本木ヒルズ　<i class="sq" style="background:#ff5a1f"></i>東京タワー</li>
-        <li>白い円が今見ている範囲。画面の上が今向いている方向</li>
+        <li><i style="background:#7dff9a"></i><span data-i18n="rYoung"></span></li>
+        <li><i style="background:#fff"></i><span data-i18n="rGrow"></span></li>
+        <li><i style="background:#ff4040"></i><span data-i18n="rRipe"></span></li>
+        <li><i style="background:#777"></i><span data-i18n="rRooted"></span></li>
+        <li><i class="sq" style="background:#ffcf33"></i><span data-i18n="rHome"></span>　<i class="sq" style="background:#ff5a1f"></i><span data-i18n="rTower"></span></li>
+        <li data-i18n="rView"></li>
       </ul>
-      <p class="note">舞台：六本木ヒルズから半径5km。建物・道路：国土交通省 Project PLATEAU 3D都市モデルを加工して作成</p>
-      <button id="howto-close">もどる</button>
+      <p class="note" data-i18n="credit"></p>
+      <button id="howto-close" data-i18n="back">もどる</button>
     </div>
     <div class="panel" id="result-panel" hidden>
       <p class="kicker" id="result-reason"></p>
       <h1 id="result-score"></h1>
       <p class="rank" id="result-rank"></p>
+      <p class="newbest" id="result-best" hidden></p>
       <dl id="result-stats"></dl>
-      <button id="share" class="share">結果をシェア</button>
-      <button id="retry">もう一回</button>
+      <button id="share" class="share" data-i18n="share">結果をシェア</button>
+      <button id="retry" data-i18n="retry">もう一回</button>
     </div>
   </div>
 </div>

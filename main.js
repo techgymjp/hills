@@ -1,5 +1,6 @@
 // 六本木ヒルズを引っこ抜け — 港区 筍狩り
 import * as THREE from './lib/three.module.min.js';
+import { t, lang, setLang, applyI18n, onLangChange, landmarkName } from './i18n.js';
 
 // =====================================================================
 // 座標系：六本木ヒルズ森タワーを原点、1単位 = 1m
@@ -1130,7 +1131,7 @@ let state = 'title';   // title | play | over
 let game = null;
 let best = 0;
 try { best = parseInt(localStorage.getItem('hills_best3d'), 10) || 0; } catch (_) { /* ignore */ }
-if (best) ui.best.textContent = `ハイスコア ${best.toLocaleString()} 点`;
+const showBest = () => { ui.best.textContent = best ? t('best', { n: best.toLocaleString() }) : ''; };
 
 const sprouts = [];
 const GRAV = 300;          // 飛んでいくヒルズの重力（ゲーム用に強め）
@@ -1202,12 +1203,12 @@ function requiredPull(s) {
 }
 
 function grade(s) {
-  if (s.state === 'rooted') return { pts: 30, name: '根っこごと引っこ抜いた！', key: 'old', color: '#ffb36b' };
-  if (s.state === 'ripe') return { pts: 20, name: 'ギリギリセーフ', key: 'old', color: '#ff8c5a' };
-  if (s.grow < 0.12) return { pts: 500, name: '極上の朝掘り！', key: 'gold', color: '#ffe14d' };
-  if (s.grow < 0.35) return { pts: 250, name: '上物！', key: 'good', color: '#7dff9a' };
-  if (s.grow < 0.7) return { pts: 100, name: 'まあまあ', key: 'ok', color: '#ffffff' };
-  return { pts: 40, name: '育ちすぎ', key: 'old', color: '#c9c9c9' };
+  if (s.state === 'rooted') return { pts: 30, name: t('gRooted'), key: 'old', color: '#ffb36b' };
+  if (s.state === 'ripe') return { pts: 20, name: t('gRipe'), key: 'old', color: '#ff8c5a' };
+  if (s.grow < 0.12) return { pts: 500, name: t('gGold'), key: 'gold', color: '#ffe14d' };
+  if (s.grow < 0.35) return { pts: 250, name: t('gGood'), key: 'good', color: '#7dff9a' };
+  if (s.grow < 0.7) return { pts: 100, name: t('gOk'), key: 'ok', color: '#ffffff' };
+  return { pts: 40, name: t('gOld'), key: 'old', color: '#c9c9c9' };
 }
 
 function yank(s) {
@@ -1256,7 +1257,7 @@ function yank(s) {
   if (navigator.vibrate) navigator.vibrate(40);
 
   const sp = project(s.spot.x, s.group.position.y + HILLS_H, s.spot.z);
-  popup(`${g.name}<small>+${pts}${game.combo > 1 ? `（${game.combo}連続）` : ''}</small>`, sp.x, sp.y, g.color, g.key === 'gold' ? 34 : 28);
+  popup(`${g.name}<small>+${pts}${game.combo > 1 ? t('comboSuffix', { n: game.combo }) : ''}</small>`, sp.x, sp.y, g.color, g.key === 'gold' ? 34 : 28);
 }
 
 function popup(html, x, y, color = '#fff', size = 28) {
@@ -1297,8 +1298,8 @@ function updateSprouts(dt) {
           sfx('root');
           cam.shake = 6;
           const sp = project(s.spot.x, HILLS_H, s.spot.z);
-          if (sp.front) popup('根付いてしまった…', sp.x, sp.y, '#ff6b6b', 24);
-          if (game.rooted >= ROOT_LIMIT) endGame('港区がヒルズに占領された！');
+          if (sp.front) popup(t('tookRoot'), sp.x, sp.y, '#ff6b6b', 24);
+          if (game.rooted >= ROOT_LIMIT) endGame(t('reasonLost'));
         }
       }
       // スワイプの合間（1.5秒以内）は上がった分を保つ
@@ -1364,22 +1365,22 @@ function updateGame(dt) {
     spawn(false);
     game.nextSpawn = lerp(3.0, 1.1, d) * rand(0.7, 1.3);
   }
-  if (game.time >= GAME_TIME) endGame('タイムアップ！');
+  if (game.time >= GAME_TIME) endGame(t('reasonTime'));
 
   ui.score.textContent = game.score.toLocaleString();
   ui.time.textContent = Math.ceil(Math.max(0, GAME_TIME - game.time));
   ui.rooted.textContent = `${game.rooted}/${ROOT_LIMIT}`;
   ui.rooted.parentElement.style.background = game.rooted >= ROOT_LIMIT - 1 ? 'rgba(200,40,40,.85)' : '';
-  if (game.combo > 1) { ui.combo.hidden = false; ui.combo.textContent = `${game.combo} 連続引っこ抜き！`; }
+  if (game.combo > 1) { ui.combo.hidden = false; ui.combo.textContent = t('comboBanner', { n: game.combo }); }
   else ui.combo.hidden = true;
 }
 
 function rankOf(score) {
-  if (score >= 9000) return 'ランクS　港区の守護神';
-  if (score >= 6000) return 'ランクA　ヒルズハンター';
-  if (score >= 3500) return 'ランクB　再開発キラー';
-  if (score >= 1500) return 'ランクC　見習い筍掘り';
-  return 'ランクD　ヒルズに好かれた人';
+  if (score >= 9000) return t('rankS');
+  if (score >= 6000) return t('rankA');
+  if (score >= 3500) return t('rankB');
+  if (score >= 1500) return t('rankC');
+  return t('rankD');
 }
 
 function endGame(reason) {
@@ -1389,10 +1390,13 @@ function endGame(reason) {
   if (pull.sprout) { pull.sprout.grabbed = false; pull.sprout = null; }
   const isBest = game.score > best;
   if (isBest) { best = game.score; try { localStorage.setItem('hills_best3d', String(best)); } catch (_) { /* ignore */ } }
-  ui.best.textContent = `ハイスコア ${best.toLocaleString()} 点`;
+  showBest();
   document.getElementById('result-reason').textContent = reason;
-  document.getElementById('result-score').textContent = `${game.score.toLocaleString()} 点`;
-  document.getElementById('result-rank').textContent = rankOf(game.score) + (isBest ? '　★自己ベスト' : '');
+  document.getElementById('result-score').textContent = t('points', { n: game.score.toLocaleString() });
+  document.getElementById('result-rank').textContent = rankOf(game.score);
+  const bestEl = document.getElementById('result-best');
+  bestEl.hidden = !isBest;
+  bestEl.textContent = t('newBest');
   // シェア用の画像：結果が出た瞬間のゲーム画面に点数を書き込む
   shareData = { score: game.score, rank: rankOf(game.score), pulled: game.pulled, reason };
   shareImage = null;
@@ -1408,20 +1412,20 @@ function endGame(reason) {
     g.fillRect(0, c.height - 330, w, 330);
     g.textAlign = 'center';
     g.fillStyle = '#ffcf33'; g.font = '900 54px sans-serif';
-    g.fillText('六本木ヒルズを引っこ抜け', w / 2, c.height - 250);
+    g.fillText(t('pageTitle'), w / 2, c.height - 250);
     g.fillStyle = '#fff'; g.font = '900 96px sans-serif';
-    g.fillText(`${game.score.toLocaleString()} 点`, w / 2, c.height - 140);
+    g.fillText(t('points', { n: game.score.toLocaleString() }), w / 2, c.height - 140);
     g.font = '700 40px sans-serif';
-    g.fillText(`${rankOf(game.score)}　${game.pulled}本引っこ抜いた`, w / 2, c.height - 60);
+    g.fillText(t('shareImgSub', { rank: rankOf(game.score), n: game.pulled }), w / 2, c.height - 60);
     c.toBlob(b => { if (b) shareImage = new File([b], 'hills-result.png', { type: 'image/png' }); }, 'image/png');
   } catch (_) { /* 画像が作れなくても文字だけでシェアする */ }
   const c = game.counts;
   document.getElementById('result-stats').innerHTML = `
-    <dt>引っこ抜いたヒルズ</dt><dd>${game.pulled} 本</dd>
-    <dt>極上の朝掘り</dt><dd>${c.gold} 本</dd>
-    <dt>上物</dt><dd>${c.good} 本</dd>
-    <dt>まあまあ・育ちすぎ</dt><dd>${c.ok + c.old} 本</dd>
-    <dt>根付いたヒルズ</dt><dd>${game.rooted} 本</dd>`;
+    <dt>${t('stPulled')}</dt><dd>${t('count', { n: game.pulled })}</dd>
+    <dt>${t('stGold')}</dt><dd>${t('count', { n: c.gold })}</dd>
+    <dt>${t('stGood')}</dt><dd>${t('count', { n: c.good })}</dd>
+    <dt>${t('stOkOld')}</dt><dd>${t('count', { n: c.ok + c.old })}</dd>
+    <dt>${t('stRooted')}</dt><dd>${t('count', { n: game.rooted })}</dd>`;
   setTimeout(() => {
     ui.overlay.hidden = false;
     ui.titlePanel.hidden = true;
@@ -1433,9 +1437,14 @@ function endGame(reason) {
 
 const startBtn = document.getElementById('start');
 startBtn.disabled = true;
-startBtn.textContent = '街と音を読み込み中… 0%';
 const loadProg = { city: 0, sound: 0 };
-const showProg = () => { startBtn.textContent = `街と音を読み込み中… ${Math.round((loadProg.city * 0.85 + loadProg.sound * 0.15) * 100)}%`; };
+let loaded = false, loadFailed = false;
+const showStart = () => {
+  if (loadFailed) startBtn.innerHTML = t('loadFailed');
+  else if (loaded) startBtn.innerHTML = t('start');
+  else startBtn.innerHTML = t('loading', { p: Math.round((loadProg.city * 0.85 + loadProg.sound * 0.15) * 100) });
+};
+const showProg = () => showStart();
 Promise.all([
   loadPlateau(k => { loadProg.city = k; showProg(); }),
   loadRoads(),
@@ -1443,13 +1452,15 @@ Promise.all([
 ]).then(([info]) => info)
   .then(info => {
     startBtn.disabled = false;
-    startBtn.textContent = 'はじめる';
+    loaded = true;
+    showStart();
     window.__hills.plateau = info;
   })
   .catch(err => {
     console.error(err);
     startBtn.disabled = false;
-    startBtn.textContent = '読み込みに失敗。タップで再読み込み';
+    loadFailed = true;
+    showStart();
     startBtn.dataset.failed = '1';
   });
 const howtoPanel = document.getElementById('howto-panel');
@@ -1466,9 +1477,9 @@ let shareData = null, shareImage = null;
 document.getElementById('share').addEventListener('click', async () => {
   if (!shareData) return;
   const url = location.origin + location.pathname;
-  const text = `六本木ヒルズを引っこ抜けで ${shareData.score.toLocaleString()}点！ ${shareData.rank}　${shareData.pulled}本引っこ抜いた #ヒルズ引っこ抜け`;
+  const text = t('shareText', { score: shareData.score.toLocaleString(), rank: shareData.rank, n: shareData.pulled });
   if (navigator.share) {
-    const data = { title: '六本木ヒルズを引っこ抜け', text, url };
+    const data = { title: t('pageTitle'), text, url };
     try {
       if (shareImage && navigator.canShare && navigator.canShare({ files: [shareImage] })) await navigator.share({ ...data, files: [shareImage] });
       else await navigator.share(data);
@@ -1720,7 +1731,7 @@ function updateArrows() {
 const labelEls = LANDMARKS.map(l => {
   const e = document.createElement('div');
   e.className = 'lm';
-  e.textContent = l.name;
+  e.textContent = landmarkName(l.name);
   ui.labels.appendChild(e);
   return e;
 });
@@ -1814,3 +1825,12 @@ requestAnimationFrame(loop);
 
 // デバッグ・テスト用
 window.__hills = { camera, renderer, scene, get state() { return state; }, get game() { return game; }, sprouts, cam, newGame, yank, project, flyTo };
+
+// 言語の切り替え（タイトル画面のボタン）
+document.getElementById('lang').addEventListener('click', () => setLang(lang === 'ja' ? 'en' : 'ja'));
+onLangChange(() => {
+  showStart();
+  showBest();
+  labelEls.forEach((e, i) => { e.textContent = landmarkName(LANDMARKS[i].name); });
+});
+applyI18n();
