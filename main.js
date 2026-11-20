@@ -1466,7 +1466,8 @@ function pickSprout(x, y, extra = 0) {
 // 指を置いてから最初に動いた方向で操作を決める
 //   上 → 引っこ抜き（指の下のヒルズ、なければ近くのヒルズ）
 //   左右 → 回転（上下の動きでは回転しない）
-//   2本指 → ピンチで拡大・縮小。別の場所へは矢印やレーダーのタップで移動
+//   2本指 → ピンチで拡大・縮小、そろえて下へスワイプで前進（上で後退）
+//   遠くへは矢印やレーダーのタップで移動
 //   下 → 何もしない
 const DECIDE_PX = 10;
 function pickNearSprout(x, y) {
@@ -1498,6 +1499,10 @@ el.addEventListener('pointermove', e => {
     const a = Math.atan2(p2.y - p1.y, p2.x - p1.x);
     const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
     cam.dist *= multi.d / Math.max(1, d);
+    // 2本指をそろえて下へ動かすと前進、上へ動かすと後退（向いている方向に進む）
+    const step = (my - multi.my) / window.innerHeight * cam.dist * 1.8;
+    cam.target.x += Math.sin(cam.heading) * step;
+    cam.target.z += -Math.cos(cam.heading) * step;
     multi = { d, a, mx, my };
     cam.fly = null;
     return;
