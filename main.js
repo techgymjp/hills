@@ -207,10 +207,10 @@ function latticeTex(color) {
 }
 // 地面
 const groundTex = canvasTex(256, 256, (g, w, h) => {
-  g.fillStyle = '#9a978d'; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 1400; i++) {
-    const v = 130 + Math.random() * 40 | 0;
-    g.fillStyle = `rgba(${v},${v - 4},${v - 14},.5)`;
+  g.fillStyle = '#6f9a4c'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 1800; i++) {
+    const v = Math.random();
+    g.fillStyle = `rgba(${80 + v * 50 | 0},${120 + v * 50 | 0},${50 + v * 30 | 0},.45)`;
     g.fillRect(Math.random() * w, Math.random() * h, 3, 3);
   }
 });
@@ -237,7 +237,7 @@ function flatShape(points, y, material) {
   return m;
 }
 const waterMat = new THREE.MeshStandardMaterial({ color: 0x3f74a3, roughness: 0.25, metalness: 0.2 });
-const landMat = new THREE.MeshStandardMaterial({ color: 0x9a978d, roughness: 1 });
+const landMat = new THREE.MeshStandardMaterial({ color: 0x6f9a4c, roughness: 1 });
 flatShape(BAY, 0.6, waterMat);
 ISLANDS.forEach(is => flatShape(is, 1.2, landMat));
 { // 隅田川
@@ -251,7 +251,7 @@ ISLANDS.forEach(is => flatShape(is, 1.2, landMat));
   });
   flatShape([...left, ...right.reverse()], 0.7, waterMat);
 }
-const parkMat = new THREE.MeshStandardMaterial({ color: 0x5f8f4a, roughness: 1 });
+const parkMat = new THREE.MeshStandardMaterial({ color: 0x4f8a3c, roughness: 1 });
 parkData.forEach(k => {
   const m = new THREE.Mesh(new THREE.CircleGeometry(1, 40), parkMat);
   m.rotation.x = -Math.PI / 2;
@@ -751,6 +751,25 @@ async function loadPlateau(onProgress) {
   }
   onProgress(1);
   return { buildings: recs.length, spots: SPOTS.length };
+}
+
+// PLATEAU の道路（LOD1 道路面）を描き込んだマスク画像を地面に重ねる
+const ROAD_TEX_SIZE = 12288; // 画像がカバーする一辺の長さ（m）
+function loadRoads() {
+  return new Promise(resolve => {
+    new THREE.TextureLoader().load('data/roads.png', tex => {
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      const road = new THREE.Mesh(
+        new THREE.PlaneGeometry(ROAD_TEX_SIZE, ROAD_TEX_SIZE),
+        new THREE.MeshStandardMaterial({ color: 0x8c8c90, roughness: 0.95, alphaMap: tex, alphaTest: 0.45 }),
+      );
+      road.rotation.x = -Math.PI / 2;
+      road.position.y = 1.4;
+      road.receiveShadow = true;
+      scene.add(road);
+      resolve(true);
+    }, undefined, () => resolve(false));
+  });
 }
 
 function updateSmallChunks() {
@@ -1356,7 +1375,7 @@ function endGame(reason) {
 const startBtn = document.getElementById('start');
 startBtn.disabled = true;
 startBtn.textContent = '街を読み込み中… 0%';
-loadPlateau(k => { startBtn.textContent = `街を読み込み中… ${Math.round(k * 100)}%`; })
+Promise.all([loadPlateau(k => { startBtn.textContent = `街を読み込み中… ${Math.round(k * 100)}%`; }), loadRoads()]).then(([info]) => info)
   .then(info => {
     startBtn.disabled = false;
     startBtn.textContent = 'はじめる';
