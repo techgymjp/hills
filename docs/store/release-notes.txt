@@ -1,0 +1,16 @@
+<ja-JP>
+はじめてのリリースです。
+・本物の港区（PLATEAUの3D都市モデル）に生えてくる六本木ヒルズを、上スワイプで引っこ抜く3Dゲーム
+・早く見つけるほど楽に抜けて高得点。根付いたヒルズも何回かのスワイプで抜ける
+・地下鉄の近くのヒルズは、電車ごと引っこ抜くとボーナス
+・東京タワー・スカイツリー・富士山も見える
+・スコアとランクのシェア、日本語・英語対応
+</ja-JP>
+<en-US>
+First release.
+- A 3D game: swipe up to pull Roppongi Hills towers out of the real Minato City, Tokyo (built from PLATEAU 3D city models)
+- Catch them early for an easy pull and big points. Rooted towers come out with a few more swipes
+- Towers near a subway line come with a train in their roots for a bonus
+- See Tokyo Tower, Skytree and Mt. Fuji
+- Share your score and rank. English and Japanese
+</en-US>
