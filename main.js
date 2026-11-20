@@ -1249,15 +1249,15 @@ function newGame() {
   spawn(true); spawn(true);
 }
 
-function spawn(near) {
-  const free = SPOTS.filter(s => !s.used);
+function spawn(near, forced = null) {
+  const free = forced ? [forced] : SPOTS.filter(s => !s.used);
   if (!free.length) return;
   let pool = free;
   if (near || Math.random() < 0.55) {
     const close = free.filter(s => Math.hypot(s.x - cam.target.x, s.z - cam.target.z) < 1700 && Math.hypot(s.x - cam.target.x, s.z - cam.target.z) > 200);
     if (close.length) pool = close;
   }
-  const spot = pool[Math.random() * pool.length | 0];
+  const spot = forced || pool[Math.random() * pool.length | 0];
   spot.used = true;
   const line = subwayAt(spot);
   const group = makeHills(true, line);
@@ -2123,7 +2123,7 @@ requestAnimationFrame(loop);
 
 // web-only:start
 // 撮影・テスト用（アプリ用のビルドでは取り除く）
-window.__hills = { get plateau() { return plateauInfo; }, spotStats: () => ({ spots: SPOTS.length, near: SPOTS.filter(sp => subwayAt(sp)).length }), camera, renderer, scene, get state() { return state; }, get game() { return game; }, sprouts, cam, newGame, yank, project, flyTo };
+window.__hills = { popup, grade, spawnWithTrain: line => { const sp = SPOTS.find(q => !q.used && subwayAt(q) && (!line || SUBWAY_LINES[line].paths.some(path => distToPolyline(q, path) < SUBWAY_NEAR))); spawn(false, sp); return sprouts[sprouts.length - 1]; }, get plateau() { return plateauInfo; }, spotStats: () => ({ spots: SPOTS.length, near: SPOTS.filter(sp => subwayAt(sp)).length }), camera, renderer, scene, get state() { return state; }, get game() { return game; }, sprouts, cam, newGame, yank, project, flyTo };
 // web-only:end
 
 // 言語の切り替え（タイトル画面のボタン）
