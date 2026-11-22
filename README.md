@@ -72,6 +72,9 @@ python3 -m http.server 8000
 
 Capacitor でゲームのファイルをアプリに同梱しています（オフラインで遊べます）。パッケージ名は `jp.techgym.hills`。
 
+- Google Play：https://play.google.com/store/apps/details?id=jp.techgym.hills
+  （Web 版のタイトル画面にもリンクを置いている。アプリ用のビルドでは `web-only` の目印で囲んだ部分ごと取り除く）
+
 - 動作確認用 APK（デバッグ署名・テスト広告）：https://github.com/techgymjp/hills/releases/tag/android-latest
   （APK 直接：https://github.com/techgymjp/hills/releases/latest/download/hills.apk）
 

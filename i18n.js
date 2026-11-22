@@ -4,6 +4,9 @@
 const DICT = {
   ja: {
     pageTitle: '六本木ヒルズを引っこ抜け',
+    // web-only:start
+    storeLink: '▶ Android アプリ版（Google Play）',
+    // web-only:end
     langButton: 'English',
     hudScore: 'スコア', hudTime: 'のこり', hudRooted: '定着',
     muteLabel: '音のオン・オフ',
@@ -67,6 +70,9 @@ const DICT = {
   },
   en: {
     pageTitle: 'Pull Out Roppongi Hills',
+    // web-only:start
+    storeLink: '▶ Android app (Google Play)',
+    // web-only:end
     langButton: '日本語',
     hudScore: 'SCORE', hudTime: 'TIME', hudRooted: 'ROOTED',
     muteLabel: 'Sound on/off',

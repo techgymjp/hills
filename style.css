@@ -88,3 +88,21 @@ html[lang="en"] .pill .label{font-size:9px;letter-spacing:.05em}
 /* アプリでバナー広告が出ているときは、パネルのボタンが隠れないよう下に余白を取る */
 body.has-banner #overlay{padding-bottom:66px}
 body.has-banner .howto{max-height:calc(100vh - 98px)}
+/* web-only:start */
+.store-link{display:inline-block;margin:12px auto 0;padding:7px 16px;border-radius:999px;background:#fff;color:var(--ink);font-size:14px;font-weight:800;text-decoration:none;box-shadow:0 3px 0 #9aa3b5}
+.store-link:active{transform:translateY(2px);box-shadow:0 1px 0 #9aa3b5}
+/* web-only:end */
+/* 背の低い画面では、タイトル画面の余白と文字を少し詰める（それでも収まらなければパネルの中をスクロール） */
+#title-panel{max-height:calc(100vh - 32px);overflow-y:auto}
+@media (max-height:600px){
+  .panel{padding:18px 20px}
+  h1{font-size:26px;margin-bottom:10px}
+  h1 span{font-size:38px}
+  html[lang="en"] h1 span{font-size:32px}
+  .lead{margin-bottom:10px;line-height:1.55}
+  .note{margin-bottom:8px}
+  .best{margin-bottom:10px}
+  .store-link{margin-top:10px}
+  button.lang{margin-top:10px}
+  .legal{margin-top:8px}
+}
